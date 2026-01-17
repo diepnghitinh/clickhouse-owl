@@ -3,9 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Table2, Terminal, Plus } from 'lucide-react';
+import { LayoutDashboard, Table2, Terminal, Plus, Pencil, Trash } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AddConnectionModal } from '@/components/AddConnectionModal';
+import { AddConnectionModal, ConnectionConfig } from '@/components/AddConnectionModal';
+import { Dropdown } from '@/components/ui/Dropdown';
 
 export function Sidebar({ username }: { username: string }) {
   const pathname = usePathname();
@@ -18,6 +19,7 @@ export function Sidebar({ username }: { username: string }) {
 
   const [isConnectionModalOpen, setIsConnectionModalOpen] = React.useState(false);
   const [connections, setConnections] = React.useState<any[]>([]);
+  const [editingConnection, setEditingConnection] = React.useState<ConnectionConfig | undefined>(undefined);
 
   React.useEffect(() => {
     const stored = localStorage.getItem('clickhouse_connections');
@@ -26,10 +28,37 @@ export function Sidebar({ username }: { username: string }) {
     }
   }, []);
 
-  const handleAddConnection = (connection: any) => {
-    const newConnections = [...connections, connection];
+  const handleSaveConnection = (connection: ConnectionConfig) => {
+    let newConnections;
+    if (editingConnection) {
+      // Update existing
+      newConnections = connections.map(c => c.name === editingConnection.name ? connection : c);
+    } else {
+      // Add new
+      newConnections = [...connections, connection];
+    }
+
     setConnections(newConnections);
     localStorage.setItem('clickhouse_connections', JSON.stringify(newConnections));
+    setEditingConnection(undefined); // Reset edit state
+  };
+
+  const handleEdit = (conn: any) => {
+    setEditingConnection(conn);
+    setIsConnectionModalOpen(true);
+  };
+
+  const handleRemove = (conn: any) => {
+    if (confirm(`Are you sure you want to remove ${conn.name}?`)) {
+      const newConnections = connections.filter(c => c.name !== conn.name);
+      setConnections(newConnections);
+      localStorage.setItem('clickhouse_connections', JSON.stringify(newConnections));
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingConnection(undefined);
+    setIsConnectionModalOpen(true);
   };
 
   const handleSwitchConnection = async (conn: any) => {
@@ -62,7 +91,8 @@ export function Sidebar({ username }: { username: string }) {
       <AddConnectionModal
         isOpen={isConnectionModalOpen}
         onClose={() => setIsConnectionModalOpen(false)}
-        onAdd={handleAddConnection}
+        onAdd={handleSaveConnection}
+        initialData={editingConnection}
       />
       <aside className="w-[240px] flex flex-col h-full border-r border-border bg-background shrink-0">
         <div className="p-4 flex items-center gap-3 border-b border-border/40">
@@ -115,17 +145,26 @@ export function Sidebar({ username }: { username: string }) {
           </div>
           <div className="space-y-1">
             {connections.map((conn, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSwitchConnection(conn)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm text-muted-foreground hover:bg-secondary/50 hover:text-foreground group text-left"
-              >
-                <div className="w-2 h-2 rounded-full bg-green-500/50 group-hover:bg-green-500 shrink-0" />
-                <span className="truncate">{conn.name}</span>
-              </button>
+              <div key={idx} className="group flex items-center gap-1 pr-2 rounded-md hover:bg-secondary/50 transition-colors">
+                <button
+                  onClick={() => handleSwitchConnection(conn)}
+                  className="flex-1 flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground text-left overflow-hidden"
+                >
+                  <div className="w-2 h-2 rounded-full bg-green-500/50 group-hover:bg-green-500 shrink-0" />
+                  <span className="truncate">{conn.name}</span>
+                </button>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Dropdown
+                    items={[
+                      { label: 'Edit', onClick: () => handleEdit(conn), icon: <Pencil className="w-3 h-3" /> },
+                      { label: 'Remove', onClick: () => handleRemove(conn), danger: true, icon: <Trash className="w-3 h-3" /> }
+                    ]}
+                  />
+                </div>
+              </div>
             ))}
             <button
-              onClick={() => setIsConnectionModalOpen(true)}
+              onClick={openAddModal}
               className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm text-muted-foreground hover:bg-secondary/50 hover:text-foreground border border-dashed border-border/50 hover:border-brand/50 mt-2"
             >
               <Plus className="w-4 h-4" />

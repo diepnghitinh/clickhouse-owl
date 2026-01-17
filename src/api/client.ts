@@ -69,14 +69,19 @@ export const DataType = {
 export type DataType = typeof DataType[keyof typeof DataType];
 
 // Token management
-let token: string | null = localStorage.getItem('clickhouse_owl_token');
+let token: string | null = null;
+if (typeof window !== 'undefined') {
+    token = localStorage.getItem('clickhouse_owl_token');
+}
 
 export const setToken = (newToken: string | null) => {
     token = newToken;
-    if (newToken) {
-        localStorage.setItem('clickhouse_owl_token', newToken);
-    } else {
-        localStorage.removeItem('clickhouse_owl_token');
+    if (typeof window !== 'undefined') {
+        if (newToken) {
+            localStorage.setItem('clickhouse_owl_token', newToken);
+        } else {
+            localStorage.removeItem('clickhouse_owl_token');
+        }
     }
 };
 
@@ -98,7 +103,9 @@ axios.interceptors.response.use(
             setToken(null);
             // Trigger a reload or event to potential logout logic if needed
             // For now, App component will detect token absence on next render/action if we manage state there
-            window.location.reload();
+            if (typeof window !== 'undefined') {
+                window.location.reload();
+            }
         }
         return Promise.reject(error);
     }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { X, Database, Plus, Code2, Play } from 'lucide-react';
-import { executeQuery } from '../api/client';
+import { executeQuery } from '@/src/api/client';
 
 interface CreateDatabaseModalProps {
     onClose: () => void;

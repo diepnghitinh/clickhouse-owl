@@ -7,6 +7,7 @@ interface AddConnectionModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAdd: (connection: ConnectionConfig) => void;
+    initialData?: ConnectionConfig;
 }
 
 export interface ConnectionConfig {
@@ -17,7 +18,7 @@ export interface ConnectionConfig {
     database: string;
 }
 
-export function AddConnectionModal({ isOpen, onClose, onAdd }: AddConnectionModalProps) {
+export function AddConnectionModal({ isOpen, onClose, onAdd, initialData }: AddConnectionModalProps) {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<ConnectionConfig>({
         name: '',
@@ -26,6 +27,20 @@ export function AddConnectionModal({ isOpen, onClose, onAdd }: AddConnectionModa
         password: '',
         database: 'default',
     });
+
+    React.useEffect(() => {
+        if (isOpen && initialData) {
+            setFormData(initialData);
+        } else if (isOpen && !initialData) {
+            setFormData({
+                name: '',
+                url: 'http://localhost:8123',
+                user: 'default',
+                password: '',
+                database: 'default',
+            });
+        }
+    }, [isOpen, initialData]);
 
     if (!isOpen) return null;
 
@@ -53,10 +68,10 @@ export function AddConnectionModal({ isOpen, onClose, onAdd }: AddConnectionModa
                 <div className="mb-6">
                     <h2 className="text-xl font-bold flex items-center gap-2">
                         <Server className="w-6 h-6 text-brand" />
-                        Add Connection
+                        {initialData ? 'Edit Connection' : 'Add Connection'}
                     </h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Configure a new ClickHouse server connection.
+                        {initialData ? 'Update connection details.' : 'Configure a new ClickHouse server connection.'}
                     </p>
                 </div>
 
@@ -127,8 +142,8 @@ export function AddConnectionModal({ isOpen, onClose, onAdd }: AddConnectionModa
                         <Button variant="ghost" type="button" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" loading={loading} iconRight={<Plus className="w-4 h-4" />}>
-                            Add Connection
+                        <Button type="submit" loading={loading} iconRight={!initialData && <Plus className="w-4 h-4" />}>
+                            {initialData ? 'Save Changes' : 'Add Connection'}
                         </Button>
                     </div>
                 </form>

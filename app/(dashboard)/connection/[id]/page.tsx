@@ -5,17 +5,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { Database, Server, Table2, Plus, ArrowRight, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { CreateDatabaseModal } from '@/components/CreateDatabaseModal';
+import { AddConnectionModal, ConnectionConfig } from '@/components/AddConnectionModal';
 
 interface DatabaseInfo {
     name: string;
 }
 
-interface ConnectionConfig {
-    name: string;
-    url: string;
-    user: string;
-    database: string;
-}
+
 
 export default function ConnectionDetailPage() {
     const params = useParams();
@@ -29,6 +25,41 @@ export default function ConnectionDetailPage() {
     const [loading, setLoading] = useState(true);
     const [connection, setConnection] = useState<ConnectionConfig | null>(null);
     const [isCreateDbOpen, setIsCreateDbOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+    const handleEditConnection = async (updatedConn: ConnectionConfig) => {
+        // 1. Update localStorage
+        const stored = localStorage.getItem('clickhouse_connections');
+        if (stored && connection) {
+            let conns = JSON.parse(stored);
+            const index = conns.findIndex((c: any) => c.name === connection.name); // Find by old name
+
+            if (index !== -1) {
+                conns[index] = updatedConn;
+                localStorage.setItem('clickhouse_connections', JSON.stringify(conns));
+                setConnection(updatedConn);
+
+                // 2. Switch session to new details
+                try {
+                    await fetch('/api/connection/switch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updatedConn)
+                    });
+                    // 3. Redirect if name changed, otherwise just reload or stay
+                    if (updatedConn.name !== connection.name) {
+                        const newId = encodeURIComponent(updatedConn.name.toLowerCase().replace(/\s+/g, '-'));
+                        router.push(`/connection/${newId}`);
+                    } else {
+                        window.location.reload();
+                    }
+                } catch (e) {
+                    console.error("Failed to update session", e);
+                }
+            }
+        }
+        setIsEditModalOpen(false);
+    };
 
     useEffect(() => {
         // 1. Fetch current connection details (from session or local storage matching the ID)
@@ -84,7 +115,7 @@ export default function ConnectionDetailPage() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" icon={<Settings className="w-4 h-4" />}>Configure</Button>
+                        <Button variant="outline" icon={<Settings className="w-4 h-4" />} onClick={() => setIsEditModalOpen(true)}>Configure</Button>
                         <Button variant="danger">Remove</Button>
                     </div>
                 </div>
@@ -152,14 +183,24 @@ export default function ConnectionDetailPage() {
                     </div>
                 </div>
 
-                <CreateDatabaseModal
-                    isOpen={isCreateDbOpen}
-                    onClose={() => setIsCreateDbOpen(false)}
-                    onSuccess={() => {
-                        setIsCreateDbOpen(false);
-                        fetchDatabases();
-                    }}
-                />
+                {isCreateDbOpen && (
+                    <CreateDatabaseModal
+                        onClose={() => setIsCreateDbOpen(false)}
+                        onSuccess={() => {
+                            setIsCreateDbOpen(false);
+                            fetchDatabases();
+                        }}
+                    />
+                )}
+
+                {connection && (
+                    <AddConnectionModal
+                        isOpen={isEditModalOpen}
+                        onClose={() => setIsEditModalOpen(false)}
+                        onAdd={handleEditConnection}
+                        initialData={connection}
+                    />
+                )}
             </div>
         </div>
     );
