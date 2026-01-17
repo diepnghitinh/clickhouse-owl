@@ -6,9 +6,11 @@ import {
     Database,
     MessageSquare,
     PanelLeftClose,
-    Terminal
+    Terminal,
+    Plus
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { AddConnectionModal } from './AddConnectionModal';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -42,8 +44,45 @@ export function Layout({
         </div>
     );
 
+    const [isConnectionModalOpen, setIsConnectionModalOpen] = React.useState(false);
+    const [connections, setConnections] = React.useState<any[]>([]);
+
+    React.useEffect(() => {
+        const stored = localStorage.getItem('clickhouse_connections');
+        if (stored) {
+            setConnections(JSON.parse(stored));
+        }
+    }, []);
+
+    const handleAddConnection = (connection: any) => {
+        const newConnections = [...connections, connection];
+        setConnections(newConnections);
+        localStorage.setItem('clickhouse_connections', JSON.stringify(newConnections));
+    };
+
+    const handleSwitchConnection = async (conn: any) => {
+        // Simple reload with new creds for now, or use a proper context
+        // Ideally we call login() then reload, but we might need to expose login logic here
+        // For now, let's just save to a "active_connection" storage and reload which might be picked up by app?
+        // Actually the prompt said "after login".
+        // Let's import login and use it.
+        try {
+            const { login } = await import('../api/client');
+            await login(conn.user, conn.password, conn.url, conn.database);
+            window.location.reload();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to switch connection");
+        }
+    };
+
     return (
         <div className="flex w-full h-screen bg-background text-foreground overflow-hidden font-sans">
+            <AddConnectionModal
+                isOpen={isConnectionModalOpen}
+                onClose={() => setIsConnectionModalOpen(false)}
+                onAdd={handleAddConnection}
+            />
             {/* Primary Sidebar */}
             <aside className="w-[240px] flex flex-col h-full border-r border-border bg-background shrink-0">
                 {/* Header */}
@@ -66,6 +105,27 @@ export function Layout({
                     <SectionHeader label="Database" />
                     <NavItem icon={Table2} label="Tables" id="tables" />
                     <NavItem icon={Terminal} label="SQL Editor" id="query" />
+
+                    <SectionHeader label="Connections" />
+                    <div className="space-y-1 mt-1">
+                        {connections.map((conn, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => handleSwitchConnection(conn)}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm text-muted-foreground hover:bg-secondary/50 hover:text-foreground group"
+                            >
+                                <div className="w-2 h-2 rounded-full bg-green-500/50 group-hover:bg-green-500" />
+                                <span className="truncate">{conn.name}</span>
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setIsConnectionModalOpen(true)}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm text-muted-foreground hover:bg-secondary/50 hover:text-foreground border border-dashed border-border/50 hover:border-brand/50"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Add Connection</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Footer */}

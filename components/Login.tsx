@@ -1,8 +1,9 @@
+'use client';
+
 import { useState } from 'react';
 import { Database, Lock, User, ArrowRight, Sparkles, Zap, Shield } from 'lucide-react';
-import { login } from '../api/client';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -11,8 +12,6 @@ interface LoginProps {
 export function Login({ onLoginSuccess }: LoginProps) {
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
-  const [url, setUrl] = useState('');
-  const [database, setDatabase] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,11 +20,17 @@ export function Login({ onLoginSuccess }: LoginProps) {
     setLoading(true);
     setError(null);
 
-    const result = await login(user, password, url, database);
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user, password }),
+    });
+
+    const data = await response.json();
     setLoading(false);
 
-    if (result.error) {
-      setError(result.error);
+    if (!response.ok) {
+      setError(data.error || 'Login failed');
     } else {
       onLoginSuccess();
     }
@@ -92,34 +97,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">ClickHouse URL</label>
-                <div className="relative">
-                  <Database className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="http://localhost:8123"
-                    className="pl-10 bg-secondary/50 border-input focus:border-brand/50"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Database</label>
-                <div className="relative">
-                  <Database className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    value={database}
-                    onChange={(e) => setDatabase(e.target.value)}
-                    placeholder="default"
-                    className="pl-10 bg-secondary/50 border-input focus:border-brand/50"
-                  />
-                </div>
-              </div>
-
-              <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Username</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -130,7 +107,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
                     placeholder="Enter username"
                     required
                     autoComplete="username"
-
+                    autoFocus
                     className="pl-10 bg-secondary/50 border-input focus:border-brand/50"
                   />
                 </div>
@@ -165,7 +142,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
           <div className="mt-8 pt-6 border-t border-border text-center">
             <p className="text-xs text-muted-foreground">
-              Leave empty to use server defaults (from environment variables).
+              Default: <code className="text-brand font-mono">default</code> / <code className="text-brand font-mono">clickhouse</code>
             </p>
           </div>
         </div>

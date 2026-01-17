@@ -104,9 +104,9 @@ axios.interceptors.response.use(
     }
 );
 
-export const login = async (user: string, password: string): Promise<{ token: string; error?: string }> => {
+export const login = async (user: string, password: string, url?: string, database?: string): Promise<{ token: string; error?: string }> => {
     try {
-        const response = await axios.post<{ token: string; error?: string }>(`${API_BASE}/login`, { user, password });
+        const response = await axios.post<{ token: string; error?: string }>(`${API_BASE}/login`, { user, password, url, database });
         if (response.data.token) {
             setToken(response.data.token);
         }
