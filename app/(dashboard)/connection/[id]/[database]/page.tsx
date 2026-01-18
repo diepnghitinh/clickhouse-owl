@@ -74,11 +74,44 @@ export default function DatabaseDetailPage() {
                 // Existing UI expects: name, schema, columns[].
 
                 const tableRows = data.rows || [];
-                const tables: TableInfo[] = tableRows.map((r: any) => ({
+                let tables: TableInfo[] = tableRows.map((r: any) => ({
                     name: r[0],
                     schema: databaseName,
-                    columns: [] // Placeholder, fetching columns for all tables is heavy
+                    columns: [] // Placeholder init
                 }));
+
+                // Fetch column counts
+                if (tables.length > 0) {
+                    try {
+                        const countRes = await fetch('/api/query', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                query: `SELECT table, count() FROM system.columns WHERE database = '${databaseName}' GROUP BY table`,
+                                connection: connection
+                            })
+                        });
+
+                        if (countRes.ok) {
+                            const countData = await countRes.json();
+                            const counts: Record<string, number> = {};
+                            // Handle both array of arrays (rows) and array of objects (if legacy)
+                            // Assuming standard format from our API which returns { rows: [[table, count], ...] }
+                            const rows = countData.rows || [];
+                            rows.forEach((row: any[]) => {
+                                counts[row[0]] = parseInt(row[1]);
+                            });
+
+                            tables = tables.map(t => ({
+                                ...t,
+                                columns: new Array(counts[t.name] || 0).fill(null) // Create dummy array of correct length to satisfy .length usage
+                            }));
+                        }
+                    } catch (err) {
+                        console.error("Failed to fetch column counts", err);
+                    }
+                }
+
                 setTables(tables);
             }
         } catch (e) {

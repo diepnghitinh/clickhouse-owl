@@ -43,7 +43,8 @@ export default function MonitoringPage() {
                 })
             });
             const qData = await qRes.json();
-            const activeQueries = parseInt(qData.data[0]?.value || '0');
+            // Data format from API is { rows: [['value'], ...] }
+            const activeQueries = parseInt(qData.rows?.[0]?.[0] || '0');
 
             // Fetch memory (in bytes)
             const mRes = await fetch('/api/query', {
@@ -55,7 +56,7 @@ export default function MonitoringPage() {
                 })
             });
             const mData = await mRes.json();
-            const memoryBytes = parseInt(mData.data[0]?.value || '0');
+            const memoryBytes = parseInt(mData.rows?.[0]?.[0] || '0');
             const memoryGB = parseFloat((memoryBytes / (1024 * 1024 * 1024)).toFixed(2));
 
             const now = new Date();
