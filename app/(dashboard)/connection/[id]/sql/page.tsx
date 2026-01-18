@@ -8,6 +8,7 @@ import { CreateTableForm } from '@/components/CreateTableForm'; // Import the ne
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { cn } from '@/lib/utils';
+import { AI_MODELS, getModelProvider } from '@/lib/ai-config';
 
 interface Connection {
     id: string;
@@ -125,16 +126,19 @@ export default function ConnectionSqlPage() {
             const openaiKey = localStorage.getItem('openai_api_key');
             const geminiKey = localStorage.getItem('gemini_api_key');
 
-            // Determine provider and available models if not set
+            // Determine provider and available models
             let provider = '';
             let apiKey = '';
 
-            if (aiModel.startsWith('gpt')) {
-                provider = 'openai';
-                apiKey = openaiKey || '';
-            } else if (aiModel.startsWith('gemini')) {
-                provider = 'gemini';
-                apiKey = geminiKey || '';
+            if (aiModel) {
+                const p = getModelProvider(aiModel);
+                if (p === 'openai') {
+                    provider = 'openai';
+                    apiKey = openaiKey || '';
+                } else if (p === 'gemini') {
+                    provider = 'gemini';
+                    apiKey = geminiKey || '';
+                }
             } else {
                 // Auto-detect
                 if (openaiKey) {
@@ -375,11 +379,11 @@ export default function ConnectionSqlPage() {
                                         onChange={e => setAiModel(e.target.value)}
                                     >
                                         <option value="">Auto</option>
-                                        <option value="gpt-4o">GPT-4o</option>
-                                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                                        <option value="gpt-3.5-turbo">GPT-3.5</option>
-                                        <option value="gemini-pro">Gemini Pro</option>
-                                        <option value="gemini-1.5-flash">Gemini Flash</option>
+                                        {AI_MODELS.map(model => (
+                                            <option key={model.id} value={model.id}>
+                                                {model.name}
+                                            </option>
+                                        ))}
                                     </select>
 
                                     <input
