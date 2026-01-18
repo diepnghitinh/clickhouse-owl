@@ -12,11 +12,13 @@
   "dependencies": {
     "@clickhouse/client": "^1.16.0",
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/pg": "^8.16.0",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "iron-session": "^8.0.4",
     "lucide-react": "^0.562.0",
     "next": "^16.1.2",
+    "pg": "^8.17.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tailwind-merge": "^3.4.0",

@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { queryClickHouse } from '@/lib/clickhouse';
+import { Client } from 'pg';
 
 export async function POST(request: Request) {
     const session = await getSession();
@@ -9,39 +9,48 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    let client: Client | null = null;
     try {
         const body = await request.json();
-        const { name, engine, host, port, username, password, database } = body;
+        const { engine, host, port, username, password, database } = body;
 
-        if (!name || !engine || !host || !port || !username || !password || !database) {
+        if (!host || !port || !username || !password || !database) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        let engineClause = '';
-
-        if (engine === 'PostgreSQL') {
-            engineClause = `PostgreSQL('${host}:${port}', '${database}', '${username}', '${password}')`;
-        } else if (engine === 'MySQL') {
-            engineClause = `MySQL('${host}:${port}', '${database}', '${username}', '${password}')`;
-        } else {
+        if (engine !== 'PostgreSQL') {
+            // For now we only support Postgres via 'pg'
+            // If MySQL support is needed, we'd need 'mysql2'
+            if (engine === 'MySQL') {
+                return NextResponse.json({ error: 'MySQL verification not yet implemented on this route' }, { status: 501 });
+            }
             return NextResponse.json({ error: 'Unsupported engine' }, { status: 400 });
         }
 
-        // Drop existing if any (to update connection)
-        await queryClickHouse(`DROP DATABASE IF EXISTS "${name}"`, undefined, session.connection);
+        client = new Client({
+            host,
+            port: parseInt(port),
+            user: username,
+            password,
+            database,
+            ssl: false // TODO: Add SSL support option in UI
+        });
 
-        // Create new connection
-        const query = `
-            CREATE DATABASE "${name}"
-            ENGINE = ${engineClause}
-        `;
+        await client.connect();
 
-        await queryClickHouse(query, undefined, session.connection);
+        // simple test query
+        await client.query('SELECT 1');
 
-        return NextResponse.json({ success: true, message: `Connected to ${name} (${engine})` });
+        await client.end();
+        client = null;
+
+        return NextResponse.json({ success: true, message: `Successfully connected to ${database}` });
 
     } catch (error: any) {
         console.error("Failed to connect datasource:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        if (client) {
+            try { await client.end(); } catch { }
+        }
+        return NextResponse.json({ error: error.message || 'Connection failed' }, { status: 500 });
     }
 }

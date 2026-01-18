@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { queryClickHouse } from '@/lib/clickhouse';
@@ -10,23 +11,27 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json();
-        const { sourceDatabase, sourceTable, targetTable } = body;
+        const { sourceTable, targetTable, connection } = body;
 
-        if (!sourceDatabase || !sourceTable || !targetTable) {
+        if (!sourceTable || !targetTable || !connection) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Default to MergeTree and ORDER BY tuple() logic for simplicity as per plan
+        const { host, port, username, password, database } = connection;
+
+        // Use postgresql function to select data directly from source
+        // engine = MergeTree() ORDER BY tuple() is reasonable for a snapshot import
+
         const query = `
       CREATE TABLE "${targetTable}"
       ENGINE = MergeTree()
       ORDER BY tuple()
-      AS SELECT * FROM "${sourceDatabase}"."${sourceTable}"
+      AS SELECT * FROM postgresql('${host}:${port}', '${database}', '${sourceTable}', '${username}', '${password}')
     `;
 
         await queryClickHouse(query, undefined, session.connection);
 
-        return NextResponse.json({ success: true, message: `Table ${targetTable} created from ${sourceDatabase}.${sourceTable}` });
+        return NextResponse.json({ success: true, message: `Table ${targetTable} imported from Postgres: ${database}.${sourceTable}` });
     } catch (error: any) {
         console.error("Failed to import table:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

@@ -114,8 +114,8 @@ export default function DataSourcesPage() {
                 throw new Error(err.error || 'Connection failed');
             }
 
-            // 2. Fetch Tables
-            await fetchTables(ds.name);
+            // 2. Fetch Tables (pass connection details now as we don't store them on backend yet)
+            await fetchTables(ds);
 
         } catch (error: any) {
             console.error(error);
@@ -126,16 +126,26 @@ export default function DataSourcesPage() {
         }
     };
 
-    const fetchTables = async (dbName: string) => {
+    const fetchTables = async (ds: DataSource) => {
         setLoadingTables(true);
         try {
-            const res = await fetch(`/api/tables?db=${dbName}`);
+            const res = await fetch('/api/tables', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ds)
+            });
             if (res.ok) {
                 const data = await res.json();
                 setTables(data);
+            } else {
+                const err = await res.json();
+                console.error("Failed to fetch tables", err);
+                // clear tables on error
+                setTables([]);
             }
         } catch (error) {
             console.error('Failed to fetch tables', error);
+            setTables([]);
         } finally {
             setLoadingTables(false);
         }
@@ -151,9 +161,9 @@ export default function DataSourcesPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    sourceDatabase: activeSource.name,
                     sourceTable: table.name,
                     targetTable: table.name,
+                    connection: activeSource // Pass full connection details
                 }),
             });
 
@@ -232,7 +242,7 @@ export default function DataSourcesPage() {
                                     <p className="text-sm text-muted-foreground">Select a table to query</p>
                                 </div>
                                 <button
-                                    onClick={() => fetchTables(activeSource.name)}
+                                    onClick={() => fetchTables(activeSource)}
                                     className="p-2 hover:bg-secondary rounded-md text-muted-foreground transition-colors"
                                     title="Refresh tables"
                                 >
