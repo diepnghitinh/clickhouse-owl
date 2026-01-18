@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Play, Database, Server, Loader2, Save, Table2, Plus, Search, FilePlus, Import } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { CreateTableModal } from '@/components/CreateTableModal';
+import { CreateTableForm } from '@/components/CreateTableForm'; // Import the new form
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,8 @@ interface TableInfo {
     engine: string;
 }
 
+type ViewMode = 'query' | 'create_table' | 'import_datasource';
+
 export default function ConnectionSqlPage() {
     const params = useParams();
     const connectionId = params.id as string;
@@ -36,14 +38,20 @@ export default function ConnectionSqlPage() {
     const [loadingTables, setLoadingTables] = useState(false);
     const [tableSearch, setTableSearch] = useState('');
 
+    // View State
+    const [activeView, setActiveView] = useState<ViewMode>('query');
+
     // Query state
     const [query, setQuery] = useState('SELECT 1');
-    const [results, setResults] = useState<{ columns: string[], rows: any[][] } | null>(null);
+    const [results, setResults] = useState<{
+        columns: string[],
+        rows: any[][],
+        statistics?: { elapsed: number; rows_read: number; bytes_read: number; }
+    } | null>(null);
     const [executing, setExecuting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Modals
-    const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
+    // Modals (only for Import now, if we keep CreateTableForm inline)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
     // Load connection details
@@ -166,6 +174,11 @@ export default function ConnectionSqlPage() {
 
     const filteredTables = tables.filter(t => t.name.toLowerCase().includes(tableSearch.toLowerCase()));
 
+    const handleTableClick = (tableName: string) => {
+        setQuery(`SELECT * FROM ${tableName} LIMIT 100`);
+        setActiveView('query'); // Switch back to query view if not already
+    };
+
     return (
         <div className="flex h-full bg-background overflow-hidden">
             {/* Sidebar - Table Browser */}
@@ -201,7 +214,7 @@ export default function ConnectionSqlPage() {
                             {
                                 label: 'Empty Table',
                                 icon: <FilePlus className="w-4 h-4" />,
-                                onClick: () => setIsCreateTableOpen(true)
+                                onClick: () => setActiveView('create_table')
                             },
                             {
                                 label: 'From Datasource',
@@ -238,7 +251,7 @@ export default function ConnectionSqlPage() {
                                 <button
                                     key={table.name}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md transition-colors group text-left"
-                                    onClick={() => setQuery(`SELECT * FROM ${table.name} LIMIT 100`)}
+                                    onClick={() => handleTableClick(table.name)}
                                 >
                                     <Table2 className="w-4 h-4 text-muted-foreground group-hover:text-brand" />
                                     <span className="truncate flex-1">{table.name}</span>
@@ -259,114 +272,128 @@ export default function ConnectionSqlPage() {
                 </div>
             </div>
 
-            {/* Main Content - Query Editor */}
-            <div className="flex-1 flex flex-col min-w-0">
-                <div className="border-b border-border bg-card p-4 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/30 rounded-md border border-border">
-                            <Server className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">{connection?.name || 'Loading...'}</span>
-                        </div>
-                        <div className="h-4 w-px bg-border" />
-                        <span className="text-sm text-muted-foreground font-mono">
-                            {selectedDatabase ? `USE ${selectedDatabase}` : 'No Database'}
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Button
-                            onClick={executeQuery}
-                            disabled={executing || !connection}
-                            loading={executing}
-                            icon={<Play className="w-4 h-4 fill-current" />}
-                            className="gap-2"
-                        >
-                            Run
-                        </Button>
-                        <span className="text-xs text-muted-foreground mr-2">(Cmd+Enter)</span>
-                    </div>
-                </div>
-
-                {/* Editor Area */}
-                <div className="flex-1 flex flex-col min-h-0">
-                    <div className="h-1/2 border-b border-border p-4 relative bg-background">
-                        <textarea
-                            className="w-full h-full bg-secondary/10 p-4 font-mono text-sm resize-none focus:outline-none rounded-lg border border-border focus:border-brand/50 custom-scrollbar"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="SELECT * FROM table..."
-                            spellCheck={false}
-                        />
-                    </div>
-
-                    {/* Results Area */}
-                    <div className="h-1/2 bg-card overflow-hidden flex flex-col">
-                        <div className="border-b border-border px-4 py-2 bg-secondary/10 flex items-center justify-between shrink-0">
-                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Results</span>
-                            {results && (
-                                <span className="text-xs text-muted-foreground">
-                                    {results.rows.length} rows • {results.columns.length} columns
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col min-w-0 bg-background">
+                {activeView === 'create_table' ? (
+                    <CreateTableForm
+                        database={selectedDatabase}
+                        onCancel={() => setActiveView('query')}
+                        onSuccess={() => {
+                            setActiveView('query');
+                            fetchTables();
+                        }}
+                    />
+                ) : (
+                    <div className="flex-1 flex flex-col min-h-0">
+                        {/* Query Editor Toolbar */}
+                        <div className="border-b border-border bg-card p-4 flex items-center justify-between gap-4 shrink-0">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/30 rounded-md border border-border">
+                                    <Server className="w-4 h-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium">{connection?.name || 'Loading...'}</span>
+                                </div>
+                                <div className="h-4 w-px bg-border" />
+                                <span className="text-sm text-muted-foreground font-mono">
+                                    {selectedDatabase ? `USE ${selectedDatabase}` : 'No Database'}
                                 </span>
-                            )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    onClick={executeQuery}
+                                    disabled={executing || !connection}
+                                    loading={executing}
+                                    icon={<Play className="w-4 h-4 fill-current" />}
+                                    className="gap-2"
+                                >
+                                    Run
+                                </Button>
+                                <span className="text-xs text-muted-foreground mr-2">(Cmd+Enter)</span>
+                            </div>
                         </div>
 
-                        <div className="flex-1 overflow-auto p-4 custom-scrollbar">
-                            {error && (
-                                <div className="p-4 rounded-lg bg-destructive/10 text-destructive border border-destructive/20 font-mono text-sm whitespace-pre-wrap">
-                                    {error}
-                                </div>
-                            )}
+                        {/* Editor Area */}
+                        <div className="flex-1 flex flex-col min-h-0">
+                            <div className="h-1/2 border-b border-border p-4 relative bg-background">
+                                <textarea
+                                    className="w-full h-full bg-secondary/10 p-4 font-mono text-sm resize-none focus:outline-none rounded-lg border border-border focus:border-brand/50 custom-scrollbar"
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="SELECT * FROM table..."
+                                    spellCheck={false}
+                                />
+                            </div>
 
-                            {results && (
-                                <div className="rounded-lg border border-border overflow-hidden inline-block min-w-full align-top">
-                                    <table className="min-w-full text-sm text-left">
-                                        <thead className="text-xs text-muted-foreground uppercase bg-secondary/50 sticky top-0">
-                                            <tr>
-                                                {results.columns.map((col, i) => (
-                                                    <th key={i} className="px-4 py-3 font-medium whitespace-nowrap border-b border-border bg-secondary/50">
-                                                        {col}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border bg-card">
-                                            {results.rows.map((row, i) => (
-                                                <tr key={i} className="hover:bg-secondary/20">
-                                                    {row.map((cell, j) => (
-                                                        <td key={j} className="px-4 py-2 whitespace-nowrap max-w-[300px] truncate border-r border-border/50 last:border-r-0 font-mono text-xs">
-                                                            {typeof cell === 'object' ? JSON.stringify(cell) : String(cell)}
-                                                        </td>
+                            {/* Results Area */}
+                            <div className="h-1/2 bg-card overflow-hidden flex flex-col">
+                                <div className="border-b border-border px-4 py-2 bg-secondary/10 flex items-center justify-between shrink-0">
+                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Results</span>
+                                    {results && (
+                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                            <span>
+                                                {results.rows.length} rows • {results.columns.length} columns
+                                            </span>
+                                            {results.statistics && (
+                                                <>
+                                                    <span className="w-px h-3 bg-border" />
+                                                    <span>{results.statistics.elapsed.toFixed(3)}s</span>
+                                                    <span className="w-px h-3 bg-border" />
+                                                    <span>{results.statistics.rows_read} rows read</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex-1 overflow-auto p-4 custom-scrollbar">
+                                    {error && (
+                                        <div className="p-4 rounded-lg bg-destructive/10 text-destructive border border-destructive/20 font-mono text-sm whitespace-pre-wrap">
+                                            {error}
+                                        </div>
+                                    )}
+
+                                    {results && (
+                                        <div className="rounded-lg border border-border overflow-hidden inline-block min-w-full align-top">
+                                            <table className="min-w-full text-sm text-left">
+                                                <thead className="text-xs text-muted-foreground uppercase bg-secondary/50 sticky top-0">
+                                                    <tr>
+                                                        {results.columns.map((col, i) => (
+                                                            <th key={i} className="px-4 py-3 font-medium whitespace-nowrap border-b border-border bg-secondary/50">
+                                                                {col}
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border bg-card">
+                                                    {results.rows.map((row, i) => (
+                                                        <tr key={i} className="hover:bg-secondary/20">
+                                                            {row.map((cell, j) => (
+                                                                <td key={j} className="px-4 py-2 whitespace-nowrap max-w-[300px] truncate border-r border-border/50 last:border-r-0 font-mono text-xs">
+                                                                    {typeof cell === 'object' ? JSON.stringify(cell) : String(cell)}
+                                                                </td>
+                                                            ))}
+                                                        </tr>
                                                     ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
 
-                            {!results && !error && !executing && (
-                                <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
-                                    <Play className="w-12 h-12 mb-4 stroke-1" />
-                                    <p>Run a query to see results</p>
+                                    {!results && !error && !executing && (
+                                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                                            <Play className="w-12 h-12 mb-4 stroke-1" />
+                                            <p>Run a query to see results</p>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Modals */}
-            <CreateTableModal
-                isOpen={isCreateTableOpen}
-                onClose={() => setIsCreateTableOpen(false)}
-                onSuccess={() => {
-                    setIsCreateTableOpen(false);
-                    fetchTables();
-                }}
-                database={selectedDatabase}
-            />
-
             <CreateFromDatasourceModal
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}

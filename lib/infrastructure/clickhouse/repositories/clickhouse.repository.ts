@@ -10,6 +10,11 @@ export interface ConnectionConfig {
 export interface QueryResult<T = any> {
     columns: string[];
     rows: T[][];
+    statistics?: {
+        elapsed: number;
+        rows_read: number;
+        bytes_read: number;
+    };
 }
 
 export class ClickHouseRepository {
@@ -60,10 +65,20 @@ export class ClickHouseRepository {
                 clickhouse_settings: { database: database || undefined },
             });
 
-            const json = await resultSet.json<{ meta?: Array<{ name: string }>; data?: any[][] }>();
+            const json = await resultSet.json<{
+                meta?: Array<{ name: string }>;
+                data?: any[][];
+                statistics?: {
+                    elapsed: number;
+                    rows_read: number;
+                    bytes_read: number;
+                }
+            }>();
+
             return {
                 columns: json.meta?.map(m => m.name) || [],
                 rows: (json.data as any[][]) || [],
+                statistics: json.statistics
             };
         } catch (e: any) {
             console.error('ClickHouse Query Error:', e.message);
