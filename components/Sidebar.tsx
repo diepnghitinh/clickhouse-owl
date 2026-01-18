@@ -170,6 +170,16 @@ export function Sidebar({ username }: { username: string }) {
                 <Database className="w-4 h-4" />
                 Data Sources
               </Link>
+              <Link
+                href="/settings"
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm font-medium",
+                  pathname === '/settings' ? "text-foreground bg-secondary font-semibold" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                )}
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </Link>
             </>
           ) : (
             /* Connection Menu */

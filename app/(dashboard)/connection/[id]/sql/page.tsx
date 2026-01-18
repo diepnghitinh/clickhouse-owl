@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Play, Database, Server, Loader2, Save, Table2, Plus, Search, FilePlus, Import } from 'lucide-react';
+import { Play, Database, Server, Loader2, Save, Table2, Plus, Search, FilePlus, Import, Bot, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { CreateTableForm } from '@/components/CreateTableForm'; // Import the new form
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
@@ -50,6 +50,10 @@ export default function ConnectionSqlPage() {
     } | null>(null);
     const [executing, setExecuting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [showAiPrompt, setShowAiPrompt] = useState(false);
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [aiGenerating, setAiGenerating] = useState(false);
 
     // Modals (only for Import now, if we keep CreateTableForm inline)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -110,6 +114,67 @@ export default function ConnectionSqlPage() {
         if (!connection || !selectedDatabase) return;
         fetchTables();
     }, [connection, selectedDatabase]);
+
+    const handleAskAI = async () => {
+        if (!aiPrompt.trim()) return;
+
+        setAiGenerating(true);
+        try {
+            // Get keys from localStorage
+            const openaiKey = localStorage.getItem('openai_api_key');
+            const geminiKey = localStorage.getItem('gemini_api_key');
+
+            // Prefer OpenAI, then Gemini. If neither, alert user.
+            let provider = '';
+            let apiKey = '';
+
+            if (openaiKey) {
+                provider = 'openai';
+                apiKey = openaiKey;
+            } else if (geminiKey) {
+                provider = 'gemini';
+                apiKey = geminiKey;
+            } else {
+                alert('Please configure an API Key in Settings first.');
+                setAiGenerating(false);
+                return;
+            }
+
+            // Construct Schema Context (simplified: list of tables + columns for the active table if any?)
+            // For now, let's just send the list of table names and engines.
+            // A better approach would be to fetch 'SHOW CREATE TABLE' for relevant tables, but that's heavy.
+            // Let's send the table list.
+            const tableList = tables.map(t => `${t.name} (${t.engine})`).join(', ');
+            const schemaContext = `Database: ${selectedDatabase}\nTables: ${tableList}`;
+
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    provider,
+                    apiKey,
+                    prompt: aiPrompt,
+                    schemaContext
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to generate query');
+            }
+
+            const data = await res.json();
+            if (data.sql) {
+                setQuery(data.sql);
+                setShowAiPrompt(false);
+                setAiPrompt('');
+            }
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setAiGenerating(false);
+        }
+    };
 
     const fetchTables = async () => {
         setLoadingTables(true);
@@ -286,7 +351,35 @@ export default function ConnectionSqlPage() {
                 ) : (
                     <div className="flex-1 flex flex-col min-h-0">
                         {/* Query Editor Toolbar */}
-                        <div className="border-b border-border bg-card p-4 flex items-center justify-between gap-4 shrink-0">
+                        <div className="border-b border-border bg-card p-4 flex items-center justify-between gap-4 shrink-0 relative">
+                            {showAiPrompt && (
+                                <div className="absolute inset-0 bg-card z-10 flex items-center px-4 gap-2 animate-in fade-in slide-in-from-top-2">
+                                    <Bot className="w-5 h-5 text-brand" />
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Ask AI to write a query (e.g. 'Show top 10 users by views')..."
+                                        className="flex-1 bg-transparent border-none focus:outline-none text-sm"
+                                        value={aiPrompt}
+                                        onChange={e => setAiPrompt(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') handleAskAI();
+                                            if (e.key === 'Escape') setShowAiPrompt(false);
+                                        }}
+                                    />
+                                    <Button
+                                        icon={aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                        onClick={handleAskAI}
+                                        disabled={aiGenerating || !aiPrompt.trim()}
+                                    >
+                                        Generate
+                                    </Button>
+                                    <button onClick={() => setShowAiPrompt(false)} className="p-1 hover:bg-secondary rounded-md">
+                                        <X className="w-4 h-4 text-muted-foreground" />
+                                    </button>
+                                </div>
+                            )}
+
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/30 rounded-md border border-border">
                                     <Server className="w-4 h-4 text-muted-foreground" />
@@ -299,6 +392,15 @@ export default function ConnectionSqlPage() {
                             </div>
 
                             <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowAiPrompt(true)}
+                                    className="gap-2 text-brand border-brand/20 hover:bg-brand/10"
+                                    icon={<Sparkles className="w-4 h-4" />}
+                                >
+                                    Ask AI
+                                </Button>
+
                                 <Button
                                     onClick={executeQuery}
                                     disabled={executing || !connection}
