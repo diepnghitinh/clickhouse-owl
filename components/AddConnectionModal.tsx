@@ -11,6 +11,7 @@ interface AddConnectionModalProps {
 }
 
 export interface ConnectionConfig {
+    id?: string;
     name: string;
     url: string;
     user: string;
@@ -49,7 +50,11 @@ export function AddConnectionModal({ isOpen, onClose, onAdd, initialData }: AddC
         setLoading(true);
         // Simulate validation or test connection could go here
         setTimeout(() => {
-            onAdd(formData);
+            const connectionToAdd = {
+                ...formData,
+                id: formData.id || crypto.randomUUID()
+            };
+            onAdd(connectionToAdd);
             setLoading(false);
             onClose();
         }, 500);

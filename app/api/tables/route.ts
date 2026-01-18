@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { queryClickHouse } from '@/lib/clickhouse';
+import { DataSourceFactory } from '@/lib/datasources/DataSourceFactory';
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -9,42 +9,18 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const database = searchParams.get('db') || 'default';
+  const database = searchParams.get('db');
+
+  if (!database) {
+    return NextResponse.json({ error: 'Database parameter is required' }, { status: 400 });
+  }
 
   try {
-    // Get tables
-    const tablesResult = await queryClickHouse(
-      `SELECT name, database as schema, engine FROM system.tables WHERE database = '${database}' ORDER BY name`,
-      database
-    );
-
-    const tables = await Promise.all(tablesResult.rows.map(async (row: any) => {
-      const tableName = row[0] as string;
-
-      // Get columns for each table
-      const columnsResult = await queryClickHouse(
-        `SELECT name, type, is_in_primary_key, default_expression FROM system.columns WHERE database = '${database}' AND table = '${tableName}' ORDER BY position`,
-        database
-      );
-
-      const columns = columnsResult.rows.map((col: any, idx: number) => ({
-        id: idx,
-        name: col[0] as string,
-        type: col[1] as string,
-        primary_key: col[2] === 1,
-        nullable: !col[2],
-        default: col[3] as string || '',
-      }));
-
-      return {
-        name: tableName,
-        schema: row[1] as string,
-        columns,
-      };
-    }));
-
+    const dataSource = await DataSourceFactory.createDataSource(database, session.connection);
+    const tables = await dataSource.listTables();
     return NextResponse.json(tables);
   } catch (error: any) {
+    console.error("Failed to fetch tables:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

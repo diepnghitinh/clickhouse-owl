@@ -2,35 +2,75 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Server, CheckCircle2 } from 'lucide-react';
+import { Plus, Server, CheckCircle2, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { AddConnectionModal, ConnectionConfig } from '@/components/AddConnectionModal';
 import { cn } from '@/lib/utils';
 import { Breadcrumb } from '@/components/Breadcrumb';
+import { Dropdown } from '@/components/ui/Dropdown';
 
 export default function ConnectionsPage() {
     const router = useRouter();
-    const [connections, setConnections] = React.useState<any[]>([]);
+    const [connections, setConnections] = React.useState<ConnectionConfig[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+    const [editingConnection, setEditingConnection] = React.useState<ConnectionConfig | undefined>(undefined);
 
     React.useEffect(() => {
         const stored = localStorage.getItem('clickhouse_connections');
         if (stored) {
-            setConnections(JSON.parse(stored));
+            try {
+                let parsed: ConnectionConfig[] = JSON.parse(stored);
+                // Backward compatibility: Ensure IDs
+                let modified = false;
+                parsed = parsed.map(c => {
+                    if (!c.id) {
+                        modified = true;
+                        return { ...c, id: crypto.randomUUID() };
+                    }
+                    return c;
+                });
+
+                setConnections(parsed);
+                if (modified) {
+                    localStorage.setItem('clickhouse_connections', JSON.stringify(parsed));
+                }
+            } catch (e) {
+                console.error("Failed to parse connections", e);
+            }
         }
     }, []);
 
     const handleSaveConnection = (connection: ConnectionConfig) => {
-        const newConnections = [...connections, connection];
+        let newConnections: ConnectionConfig[];
+
+        if (editingConnection) {
+            // Edit mode: replace by ID
+            newConnections = connections.map(c => c.id === connection.id ? connection : c);
+        } else {
+            // Add mode: append
+            newConnections = [...connections, connection];
+        }
+
         setConnections(newConnections);
         localStorage.setItem('clickhouse_connections', JSON.stringify(newConnections));
 
-        // Auto-switch/redirect?
-        // Maybe just refresh list
+        setIsAddModalOpen(false);
+        setEditingConnection(undefined);
     };
 
-    const handleSelectConnection = async (conn: any) => {
-        // Also switch the "backend session" just in case, though we rely on URL params now mostly.
-        // But purely for legacy / mix compatibility:
+    const handleDeleteConnection = (conn: ConnectionConfig) => {
+        if (confirm(`Are you sure you want to delete "${conn.name}"?`)) {
+            const newConnections = connections.filter(c => c.id !== conn.id);
+            setConnections(newConnections);
+            localStorage.setItem('clickhouse_connections', JSON.stringify(newConnections));
+        }
+    };
+
+    const handleEditConnection = (conn: ConnectionConfig) => {
+        setEditingConnection(conn);
+        setIsAddModalOpen(true);
+    };
+
+    const handleSelectConnection = async (conn: ConnectionConfig) => {
         try {
             await fetch('/api/connection/switch', {
                 method: 'POST',
@@ -53,7 +93,7 @@ export default function ConnectionsPage() {
                         <p className="text-muted-foreground mt-1">Manage your ClickHouse server connections</p>
                     </div>
                     <button
-                        onClick={() => setIsAddModalOpen(true)}
+                        onClick={() => { setEditingConnection(undefined); setIsAddModalOpen(true); }}
                         className="flex items-center gap-2 px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-brand/90 transition-colors"
                     >
                         <Plus className="w-4 h-4" />
@@ -62,9 +102,9 @@ export default function ConnectionsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {connections.map((conn, idx) => (
+                    {connections.map((conn) => (
                         <div
-                            key={idx}
+                            key={conn.id}
                             onClick={() => handleSelectConnection(conn)}
                             className="group relative bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-brand/50"
                         >
@@ -72,8 +112,23 @@ export default function ConnectionsPage() {
                                 <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400">
                                     <Server className="w-6 h-6" />
                                 </div>
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <CheckCircle2 className="w-5 h-5 text-brand" />
+                                <div className="flex items-center gap-2">
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <CheckCircle2 className="w-5 h-5 text-brand" />
+                                    </div>
+                                    <div className="relative z-10" onClick={(e) => e.stopPropagation()}>
+                                        <Dropdown
+                                            items={[
+                                                { label: 'Edit', icon: <Edit2 className="w-3 h-3" />, onClick: () => handleEditConnection(conn) },
+                                                { label: 'Delete', icon: <Trash2 className="w-3 h-3" />, danger: true, onClick: () => handleDeleteConnection(conn) }
+                                            ]}
+                                            trigger={
+                                                <button className="p-1 rounded-md text-muted-foreground hover:bg-secondary transition-colors hover:text-foreground">
+                                                    <MoreVertical className="w-4 h-4" />
+                                                </button>
+                                            }
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
@@ -88,7 +143,7 @@ export default function ConnectionsPage() {
                     ))}
 
                     <button
-                        onClick={() => setIsAddModalOpen(true)}
+                        onClick={() => { setEditingConnection(undefined); setIsAddModalOpen(true); }}
                         className="flex flex-col items-center justify-center gap-4 bg-secondary/20 border-2 border-dashed border-border rounded-xl p-6 hover:bg-secondary/40 hover:border-brand/40 transition-all group h-[200px]"
                     >
                         <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -100,8 +155,9 @@ export default function ConnectionsPage() {
 
                 <AddConnectionModal
                     isOpen={isAddModalOpen}
-                    onClose={() => setIsAddModalOpen(false)}
+                    onClose={() => { setIsAddModalOpen(false); setEditingConnection(undefined); }}
                     onAdd={handleSaveConnection}
+                    initialData={editingConnection} // Pass editing data
                 />
             </div>
         </div>

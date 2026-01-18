@@ -29,7 +29,7 @@ export async function queryClickHouse(
   query: string,
   database?: string,
   clientOrConfig?: ClickHouseClient | ConnectionConfig
-) {
+): Promise<{ columns: string[]; rows: any[][] }> {
   let client: ClickHouseClient;
 
   if (!clientOrConfig) {
@@ -49,6 +49,6 @@ export async function queryClickHouse(
   const json = await resultSet.json<{ meta?: Array<{ name: string }>; data?: any[][] }>();
   return {
     columns: json.meta?.map(m => m.name) || [],
-    rows: json.data || [],
+    rows: (json.data as any[][]) || [],
   };
 }

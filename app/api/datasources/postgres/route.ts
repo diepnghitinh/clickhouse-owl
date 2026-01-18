@@ -16,10 +16,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Sanitize input to prevent injection in SQL construction if possible, 
-        // though parameter binding is limited in DDL. 
-        // We'll rely on basic validation for now.
-
         const query = `
       CREATE DATABASE IF NOT EXISTS "${name}"
       ENGINE = PostgreSQL('${host}:${port}', '${database}', '${username}', '${password}', '${schema || 'public'}')
@@ -30,6 +26,63 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: `Data source ${name} created` });
     } catch (error: any) {
         console.error("Failed to create postgres datasource:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function PUT(request: Request) {
+    const session = await getSession();
+    if (!session.isAuthenticated) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+        const { oldName, name, host, port, username, password, database, schema } = body;
+
+        if (!oldName || !name || !host || !port || !username || !password || !database) {
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        }
+
+        // 1. Drop old database
+        // Use IF EXISTS to be safe, though UI should ensure it exists.
+        await queryClickHouse(`DROP DATABASE IF EXISTS "${oldName}"`, undefined, session.connection);
+
+        // 2. Create new database with updated config
+        const query = `
+      CREATE DATABASE "${name}"
+      ENGINE = PostgreSQL('${host}:${port}', '${database}', '${username}', '${password}', '${schema || 'public'}')
+    `;
+
+        await queryClickHouse(query, undefined, session.connection);
+
+        return NextResponse.json({ success: true, message: `Data source ${name} updated` });
+    } catch (error: any) {
+        console.error("Failed to update postgres datasource:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    const session = await getSession();
+    if (!session.isAuthenticated) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+        const { name } = body;
+
+        if (!name) {
+            return NextResponse.json({ error: 'Missing name' }, { status: 400 });
+        }
+
+        const query = `DROP DATABASE IF EXISTS "${name}"`;
+        await queryClickHouse(query, undefined, session.connection);
+
+        return NextResponse.json({ success: true, message: `Data source ${name} deleted` });
+    } catch (error: any) {
+        console.error("Failed to delete postgres datasource:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

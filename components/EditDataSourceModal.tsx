@@ -1,29 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Loader2, Database, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
-interface AddDataSourceModalProps {
+interface EditDataSourceModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAdd: (data: any) => void;
+    onEdit: (data: any) => void;
+    initialData: any;
 }
 
-export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModalProps) {
+export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: EditDataSourceModalProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
+        id: '',
         name: '',
         engine: 'PostgreSQL',
         host: '',
-        port: '5432',
+        port: '',
         username: '',
         password: '',
         database: '',
     });
+
+    useEffect(() => {
+        if (isOpen && initialData) {
+            setFormData({
+                id: initialData.id,
+                name: initialData.name,
+                engine: initialData.engine || 'PostgreSQL',
+                host: initialData.host || '',
+                port: initialData.port || '',
+                username: initialData.username || '',
+                password: initialData.password || '',
+                database: initialData.database || '',
+            });
+        }
+    }, [isOpen, initialData]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -33,20 +50,8 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
         e.preventDefault();
         setError(null);
 
-        const newId = crypto.randomUUID();
-        onAdd({ ...formData, id: newId });
+        onEdit(formData);
         onClose();
-
-        // Reset form
-        setFormData({
-            name: '',
-            engine: 'PostgreSQL',
-            host: '',
-            port: '5432',
-            username: '',
-            password: '',
-            database: '',
-        });
     };
 
     if (!isOpen) return null;
@@ -57,7 +62,7 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background/50">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         <Database className="w-5 h-5 text-brand" />
-                        Add Connection
+                        Edit Connection
                     </h2>
                     <button onClick={onClose} className="p-1 hover:bg-secondary rounded-md text-muted-foreground transition-colors">
                         <X className="w-5 h-5" />
@@ -90,12 +95,12 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                             <label className="text-sm font-medium">Connection Name (Identifier)</label>
                             <Input
                                 name="name"
-                                placeholder="my_postgres_db"
                                 value={formData.name}
                                 onChange={handleChange}
                                 required
+                                readOnly // Name change might require drop/create which is complex, for now keep readOnly or let them create new
+                                className="bg-secondary/50"
                             />
-                            <p className="text-[10px] text-muted-foreground">Unique identifier for this connection (no spaces)</p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -103,7 +108,6 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                                 <label className="text-sm font-medium">Host</label>
                                 <Input
                                     name="host"
-                                    placeholder="localhost"
                                     value={formData.host}
                                     onChange={handleChange}
                                     required
@@ -113,7 +117,6 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                                 <label className="text-sm font-medium">Port</label>
                                 <Input
                                     name="port"
-                                    placeholder="5432"
                                     value={formData.port}
                                     onChange={handleChange}
                                     required
@@ -126,7 +129,6 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                                 <label className="text-sm font-medium">Username</label>
                                 <Input
                                     name="username"
-                                    placeholder="postgres"
                                     value={formData.username}
                                     onChange={handleChange}
                                     required
@@ -137,7 +139,6 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                                 <Input
                                     type="password"
                                     name="password"
-                                    placeholder="••••••••"
                                     value={formData.password}
                                     onChange={handleChange}
                                     required
@@ -149,7 +150,6 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                             <label className="text-sm font-medium">Database Name</label>
                             <Input
                                 name="database"
-                                placeholder="production_db"
                                 value={formData.database}
                                 onChange={handleChange}
                                 required
@@ -163,7 +163,7 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                         </Button>
                         <Button type="submit" disabled={loading}>
                             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                            Save Connection
+                            Update Connection
                         </Button>
                     </div>
                 </form>

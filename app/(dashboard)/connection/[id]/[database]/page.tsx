@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Table2, ArrowRight, Database, Search } from 'lucide-react';
+import { Table2, ArrowRight, Database, Search, Plus, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Breadcrumb } from '@/components/Breadcrumb';
+import { CreateTableModal } from '@/components/CreateTableModal';
 
 interface TableInfo {
     name: string;
@@ -21,29 +22,51 @@ export default function DatabaseDetailPage() {
     const [tables, setTables] = useState<TableInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    const fetchTables = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/tables?db=${databaseName}`);
+            if (res.ok) {
+                const data = await res.json();
+                setTables(data);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchTables = async () => {
-            try {
-                // Ensure the session connection is correct or pass context?
-                // For now, we rely on the session (assuming it's set correctly on connection switch).
-                // If deep linking directly without session switch, this might be an issue.
-                // ideally backend accepts ?connectionId=... but sticking to existing pattern:
-
-                const res = await fetch(`/api/tables?db=${databaseName}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setTables(data);
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchTables();
     }, [databaseName]);
+
+    const handleDeleteTable = async (tableName: string) => {
+        if (!confirm(`Are you sure you want to delete table "${tableName}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const query = `DROP TABLE "${databaseName}"."${tableName}"`;
+            const res = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, database: databaseName })
+            });
+
+            if (res.ok) {
+                fetchTables();
+            } else {
+                const err = await res.json();
+                alert(`Failed to delete table: ${err.error}`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to delete table");
+        }
+    };
 
     const filteredTables = tables.filter(t =>
         t.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -67,6 +90,9 @@ export default function DatabaseDetailPage() {
                             </div>
                         </div>
                     </div>
+                    <Button onClick={() => setIsCreateModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
+                        Create Table
+                    </Button>
                 </div>
 
                 {/* Search Bar */}
@@ -107,12 +133,31 @@ export default function DatabaseDetailPage() {
                                         <Button variant="ghost" size="sm" iconRight={<ArrowRight className="w-4 h-4" />}>
                                             Structure
                                         </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() => handleDeleteTable(table.name)}
+                                            icon={<Trash className="w-4 h-4" />}
+                                        >
+                                            Delete
+                                        </Button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
+
+                <CreateTableModal
+                    isOpen={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onSuccess={() => {
+                        setIsCreateModalOpen(false);
+                        fetchTables();
+                    }}
+                    database={databaseName}
+                />
             </div>
         </div>
     );
