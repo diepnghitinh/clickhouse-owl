@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { queryClickHouse } from '@/lib/clickhouse';
+import { ClickHouseRepository } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -37,7 +37,7 @@ export async function POST(
         ORDER BY name
     `;
 
-        const result = await queryClickHouse(query, database, connectionConfig);
+        const result = await ClickHouseRepository.execute(query, database, connectionConfig);
 
         // Transform to expected frontend format if needed
         // The queryClickHouse return { columns: [], rows: [] }
@@ -92,7 +92,7 @@ export async function GET(
         ORDER BY name
     `;
 
-        const result = await queryClickHouse(query, db, connectionConfig);
+        const result = await ClickHouseRepository.execute(query, db, connectionConfig);
         return NextResponse.json(result);
 
     } catch (error: any) {

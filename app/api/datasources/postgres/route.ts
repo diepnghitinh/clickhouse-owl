@@ -1,6 +1,7 @@
+
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { queryClickHouse } from '@/lib/clickhouse';
+import { ClickHouseRepository } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 
 export async function POST(request: Request) {
     const session = await getSession();
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
       ENGINE = PostgreSQL('${host}:${port}', '${database}', '${username}', '${password}', '${schema || 'public'}')
     `;
 
-        await queryClickHouse(query, undefined, session.connection);
+        await ClickHouseRepository.execute(query, undefined, session.connection);
 
         return NextResponse.json({ success: true, message: `Data source ${name} created` });
     } catch (error: any) {
@@ -46,7 +47,7 @@ export async function PUT(request: Request) {
 
         // 1. Drop old database
         // Use IF EXISTS to be safe, though UI should ensure it exists.
-        await queryClickHouse(`DROP DATABASE IF EXISTS "${oldName}"`, undefined, session.connection);
+        await ClickHouseRepository.execute(`DROP DATABASE IF EXISTS "${oldName}"`, undefined, session.connection);
 
         // 2. Create new database with updated config
         const query = `
@@ -54,7 +55,7 @@ export async function PUT(request: Request) {
       ENGINE = PostgreSQL('${host}:${port}', '${database}', '${username}', '${password}', '${schema || 'public'}')
     `;
 
-        await queryClickHouse(query, undefined, session.connection);
+        await ClickHouseRepository.execute(query, undefined, session.connection);
 
         return NextResponse.json({ success: true, message: `Data source ${name} updated` });
     } catch (error: any) {
@@ -78,7 +79,7 @@ export async function DELETE(request: Request) {
         }
 
         const query = `DROP DATABASE IF EXISTS "${name}"`;
-        await queryClickHouse(query, undefined, session.connection);
+        await ClickHouseRepository.execute(query, undefined, session.connection);
 
         return NextResponse.json({ success: true, message: `Data source ${name} deleted` });
     } catch (error: any) {
@@ -101,7 +102,7 @@ export async function GET() {
       WHERE engine = 'PostgreSQL'
     `;
 
-        const result = await queryClickHouse(query, undefined, session.connection);
+        const result = await ClickHouseRepository.execute(query, undefined, session.connection);
 
         const datasources = result.rows.map((row: any) => ({
             name: row[0],

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { queryClickHouse } from '@/lib/clickhouse';
+import { ClickHouseRepository } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 
 export async function POST(request: Request) {
     const session = await getSession();
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       ${orderByClause}
     `;
 
-        await queryClickHouse(query, undefined, session.connection);
+        await ClickHouseRepository.execute(query, undefined, session.connection);
 
         return NextResponse.json({ success: true, message: `Table ${name} created` });
     } catch (error: any) {

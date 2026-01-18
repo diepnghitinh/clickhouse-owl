@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { queryClickHouse } from '@/lib/clickhouse';
+import { ClickHouseRepository } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 
 export async function POST(request: Request) {
     const session = await getSession();
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
             `;
         }
 
-        await queryClickHouse(query, undefined, session.connection);
+        await ClickHouseRepository.execute(query, undefined, session.connection);
 
         const action = mode === 'link' ? 'linked' : 'imported';
         return NextResponse.json({ success: true, message: `Table ${targetTable} ${action} from Postgres: ${database}.${sourceTable}` });

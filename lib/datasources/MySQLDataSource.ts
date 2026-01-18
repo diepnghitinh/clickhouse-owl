@@ -1,5 +1,5 @@
 import { BaseClickHouseDataSource } from './ClickHouseDataSource';
-import { ConnectionConfig } from '@/lib/clickhouse';
+import { ConnectionConfig } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 
 export class MySQLDataSource extends BaseClickHouseDataSource {
     constructor(database: string, connection?: ConnectionConfig) {

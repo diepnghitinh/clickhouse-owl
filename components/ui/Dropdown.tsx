@@ -12,9 +12,10 @@ interface DropdownItem {
 interface DropdownProps {
     items: DropdownItem[];
     trigger?: React.ReactNode;
+    menuWidth?: string;
 }
 
-export function Dropdown({ items, trigger }: DropdownProps) {
+export function Dropdown({ items, trigger, menuWidth = "w-48" }: DropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -43,7 +44,10 @@ export function Dropdown({ items, trigger }: DropdownProps) {
             </div>
 
             {isOpen && (
-                <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-dark-900 border border-border rounded-lg shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                <div className={cn(
+                    "absolute right-0 top-full mt-1 bg-white dark:bg-dark-900 border border-border rounded-lg shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right",
+                    menuWidth
+                )}>
                     <div className="py-1">
                         {items.map((item, idx) => (
                             <button

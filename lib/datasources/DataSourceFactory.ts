@@ -2,7 +2,7 @@ import { IDataSource } from './types';
 import { BaseClickHouseDataSource } from './ClickHouseDataSource';
 import { PostgresDataSource } from './PostgresDataSource';
 import { MySQLDataSource } from './MySQLDataSource';
-import { ConnectionConfig, queryClickHouse } from '@/lib/clickhouse';
+import { ClickHouseRepository, ConnectionConfig } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 
 export class DataSourceFactory {
     static async createDataSource(databaseName: string, connection?: ConnectionConfig): Promise<IDataSource> {
@@ -14,7 +14,7 @@ export class DataSourceFactory {
         `;
 
         try {
-            const result = await queryClickHouse(query, undefined, connection);
+            const result = await ClickHouseRepository.execute(query, undefined, connection);
             // Default to 'Atomic' if no rows found or error
             const engine = (result.rows && result.rows.length > 0) ? (result.rows[0][0] as string) : 'Atomic';
 

@@ -1,5 +1,5 @@
 import { IDataSource, TableDefinition, ColumnDefinition } from './types';
-import { queryClickHouse, ConnectionConfig } from '@/lib/clickhouse';
+import { ClickHouseRepository, ConnectionConfig } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 
 export class BaseClickHouseDataSource implements IDataSource {
     constructor(
@@ -9,23 +9,18 @@ export class BaseClickHouseDataSource implements IDataSource {
 
     async listTables(): Promise<TableDefinition[]> {
         // Default implementation using system tables
-        // Can be overridden by specific engines if needed
         const query = `
             SELECT name, database, engine 
             FROM system.tables 
             WHERE database = '${this.database}' 
             ORDER BY name
         `;
-        const result = await queryClickHouse(query, this.database, this.connection);
+        const result = await ClickHouseRepository.execute(query, this.database, this.connection);
 
         // Populate columns for each table is expensive N+1. 
         // For list tables, we might just return names and basic info.
         // If the UI expects columns, we should optimize or fetch lazily.
         // The current API contract seemingly returns columns.
-
-        // Let's optimize by fetching all columns for the database at once if possible,
-        // or just fetch list and let frontend fetch schema on demand (better design).
-        // However, existing codebase expects columns in the list response.
 
         // Optimization: Fetch all columns for this database
         const colsQuery = `
@@ -34,7 +29,7 @@ export class BaseClickHouseDataSource implements IDataSource {
             WHERE database = '${this.database}' 
             ORDER BY table, position
         `;
-        const colsResult = await queryClickHouse(colsQuery, this.database, this.connection);
+        const colsResult = await ClickHouseRepository.execute(colsQuery, this.database, this.connection);
 
         const output: TableDefinition[] = [];
         const colsMap = new Map<string, ColumnDefinition[]>();
@@ -71,7 +66,7 @@ export class BaseClickHouseDataSource implements IDataSource {
             WHERE database = '${this.database}' AND table = '${tableName}'
             ORDER BY position
         `;
-        const result = await queryClickHouse(query, this.database, this.connection);
+        const result = await ClickHouseRepository.execute(query, this.database, this.connection);
 
         return result.rows.map((row: any) => ({
             name: row[0],

@@ -18,6 +18,11 @@ interface Connection {
     database?: string;
 }
 
+interface TableInfo {
+    name: string;
+    engine: string;
+}
+
 export default function ConnectionSqlPage() {
     const params = useParams();
     const connectionId = params.id as string;
@@ -27,7 +32,7 @@ export default function ConnectionSqlPage() {
     const [selectedDatabase, setSelectedDatabase] = useState<string>('');
 
     // Table browser state
-    const [tables, setTables] = useState<string[]>([]);
+    const [tables, setTables] = useState<TableInfo[]>([]);
     const [loadingTables, setLoadingTables] = useState(false);
     const [tableSearch, setTableSearch] = useState('');
 
@@ -105,15 +110,14 @@ export default function ConnectionSqlPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    query: 'SHOW TABLES',
-                    database: selectedDatabase,
+                    query: 'SELECT name, engine FROM system.tables WHERE database = \'' + selectedDatabase + '\' ORDER BY name',
                     connection: connection
                 })
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setTables(data.rows.map((r: any[]) => r[0]));
+                setTables(data.rows.map((r: any[]) => ({ name: r[0], engine: r[1] })));
             }
         } catch (e) {
             console.error("Failed to fetch tables", e);
@@ -160,7 +164,7 @@ export default function ConnectionSqlPage() {
         }
     };
 
-    const filteredTables = tables.filter(t => t.toLowerCase().includes(tableSearch.toLowerCase()));
+    const filteredTables = tables.filter(t => t.name.toLowerCase().includes(tableSearch.toLowerCase()));
 
     return (
         <div className="flex h-full bg-background overflow-hidden">
@@ -186,6 +190,7 @@ export default function ConnectionSqlPage() {
 
                     {/* New Table / Actions */}
                     <Dropdown
+                        menuWidth="w-56"
                         trigger={
                             <button className="w-full flex items-center justify-center gap-2 bg-foreground text-background hover:bg-foreground/90 py-2 rounded-md text-sm font-medium transition-colors">
                                 <Plus className="w-4 h-4" />
@@ -231,12 +236,17 @@ export default function ConnectionSqlPage() {
                             </div>
                             {filteredTables.map(table => (
                                 <button
-                                    key={table}
+                                    key={table.name}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md transition-colors group text-left"
-                                    onClick={() => setQuery(`SELECT * FROM ${table} LIMIT 100`)}
+                                    onClick={() => setQuery(`SELECT * FROM ${table.name} LIMIT 100`)}
                                 >
                                     <Table2 className="w-4 h-4 text-muted-foreground group-hover:text-brand" />
-                                    <span className="truncate">{table}</span>
+                                    <span className="truncate flex-1">{table.name}</span>
+                                    {table.engine === 'PostgreSQL' && (
+                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">
+                                            PSQL
+                                        </span>
+                                    )}
                                 </button>
                             ))}
                             {filteredTables.length === 0 && (

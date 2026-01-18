@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { queryClickHouse } from '@/lib/clickhouse';
+import { ClickHouseRepository } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 import { z } from 'zod';
 
 const querySchema = z.object({
@@ -8,7 +8,6 @@ const querySchema = z.object({
   database: z.string().optional(),
   connection: z.object({
     url: z.string(),
-    // Allow either username or user
     username: z.string().optional(),
     user: z.string().optional(),
     password: z.string().optional(),
@@ -38,7 +37,7 @@ export async function POST(request: Request) {
       };
     }
 
-    const result = await queryClickHouse(query, database, connectionConfig);
+    const result = await ClickHouseRepository.execute(query, database, connectionConfig);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
