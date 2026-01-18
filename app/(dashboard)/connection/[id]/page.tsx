@@ -49,12 +49,8 @@ export default function ConnectionDetailPage() {
                         body: JSON.stringify(updatedConn)
                     });
                     // 3. Redirect if name changed, otherwise just reload or stay
-                    if (updatedConn.name !== connection.name) {
-                        const newId = encodeURIComponent(updatedConn.name.toLowerCase().replace(/\s+/g, '-'));
-                        router.push(`/connection/${newId}`);
-                    } else {
-                        window.location.reload();
-                    }
+                    // 3. No redirect needed since ID is constant
+                    window.location.reload();
                 } catch (e) {
                     console.error("Failed to update session", e);
                 }
@@ -75,10 +71,16 @@ export default function ConnectionDetailPage() {
         const stored = localStorage.getItem('clickhouse_connections');
         if (stored) {
             const conns = JSON.parse(stored);
-            const match = conns.find((c: any) =>
-                encodeURIComponent(c.name.toLowerCase().replace(/\s+/g, '-')) === id
-            );
-            if (match) setConnection(match);
+            const match = conns.find((c: any) => c.id === id);
+            // Fallback for legacy slug links (optional, but good for transition)
+            if (!match) {
+                const slugMatch = conns.find((c: any) =>
+                    encodeURIComponent(c.name.toLowerCase().replace(/\s+/g, '-')) === id
+                );
+                if (slugMatch) setConnection(slugMatch);
+            } else {
+                setConnection(match);
+            }
         }
 
         fetchDatabases();

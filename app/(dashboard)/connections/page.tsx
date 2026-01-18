@@ -78,8 +78,13 @@ export default function ConnectionsPage() {
             });
         } catch (e) { console.error('Failed to switch session', e) }
 
-        const id = encodeURIComponent(conn.name.toLowerCase().replace(/\s+/g, '-'));
-        router.push(`/connection/${id}`);
+        if (conn.id) {
+            router.push(`/connection/${conn.id}`);
+        } else {
+            // Fallback
+            const id = encodeURIComponent(conn.name.toLowerCase().replace(/\s+/g, '-'));
+            router.push(`/connection/${id}`);
+        }
     };
 
     return (
