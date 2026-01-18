@@ -440,6 +440,7 @@ export default function ConnectionSqlPage() {
 
                             <div className="flex items-center gap-2">
                                 <Button
+                                    size="sm"
                                     variant="outline"
                                     onClick={() => setShowAiPrompt(true)}
                                     className="gap-2 text-brand border-brand/20 hover:bg-brand/10"
@@ -449,6 +450,7 @@ export default function ConnectionSqlPage() {
                                 </Button>
 
                                 <Button
+                                    size="sm"
                                     onClick={executeQuery}
                                     disabled={executing || !connection}
                                     loading={executing}
