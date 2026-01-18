@@ -8,7 +8,9 @@ const querySchema = z.object({
   database: z.string().optional(),
   connection: z.object({
     url: z.string(),
-    username: z.string(),
+    // Allow either username or user
+    username: z.string().optional(),
+    user: z.string().optional(),
     password: z.string().optional(),
     database: z.string().optional()
   }).optional()
@@ -26,7 +28,15 @@ export async function POST(request: Request) {
 
     // Use provided connection or fall back to session
     // Ideally session should be primary, but for deep linking with localStorage, we allow override
-    const connectionConfig = connection || session.connection;
+    let connectionConfig: any = connection || session.connection;
+
+    // Normalize user -> username if needed
+    if (connectionConfig && connectionConfig.user && !connectionConfig.username) {
+      connectionConfig = {
+        ...connectionConfig,
+        username: connectionConfig.user
+      };
+    }
 
     const result = await queryClickHouse(query, database, connectionConfig);
     return NextResponse.json(result);

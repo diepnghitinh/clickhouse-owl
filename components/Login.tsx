@@ -140,11 +140,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
             </Button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-border text-center">
-            <p className="text-xs text-muted-foreground">
-              Default: <code className="text-brand font-mono">default</code> / <code className="text-brand font-mono">clickhouse</code>
-            </p>
-          </div>
         </div>
       </div>
     </div>

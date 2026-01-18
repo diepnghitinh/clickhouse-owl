@@ -9,7 +9,10 @@ interface CreateDatabaseModalProps {
     onSuccess: () => void;
 }
 
+import { Modal } from './ui/Modal';
+
 export function CreateDatabaseModal({ onClose, onSuccess }: CreateDatabaseModalProps) {
+    // useEscapeKey handled by Modal
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -38,66 +41,62 @@ export function CreateDatabaseModal({ onClose, onSuccess }: CreateDatabaseModalP
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-2xl flex flex-col animate-scale-in" onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+        <Modal
+            isOpen={true} // Parent controls mounting, but this component doesn't have isOpen prop? Ah, CreateDatabaseModal is conditionally rendered.
+            // Wait, previous file had isOpen usually. Let's check props.
+            // CreateDatabaseModal only has onClose and onSuccess. It's rendered via {isCreateDbOpen && <CreateDatabaseModal ... />}
+            // So we can treat isOpen as true or pass it down if we refactor parent.
+            // For now, assume it's open if mounted.
+            isOpen={true}
+            onClose={onClose}
+            title="Create Database"
+            description="Add a new database instance"
+            className="w-full max-w-md"
+        >
+            <div className="py-2">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {error && (
+                        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+                            {error}
+                        </div>
+                    )}
+
                     <div>
-                        <h2 className="text-lg font-bold text-foreground">Create Database</h2>
-                        <p className="text-sm text-muted-foreground">Add a new database instance</p>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Database Name</label>
+                        <Input
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="e.g., analytics_dw"
+                            autoFocus
+                            required
+                            className="bg-secondary/50 border-input"
+                        />
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-secondary rounded-lg text-muted-foreground transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
 
-                {/* Content */}
-                <div className="p-6">
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {error && (
-                            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
-                                {error}
-                            </div>
-                        )}
-
-                        <div>
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Database Name</label>
-                            <Input
-                                value={name}
-                                onChange={e => setName(e.target.value)}
-                                placeholder="e.g., analytics_dw"
-                                autoFocus
-                                required
-                                className="bg-secondary/50 border-input"
-                            />
+                    <div className="mt-6 bg-secondary/50 p-4 rounded-lg border border-border">
+                        <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                            <Code2 className="w-3 h-3" />
+                            <span>Generated SQL</span>
                         </div>
+                        <pre className="font-mono text-xs text-brand whitespace-pre-wrap overflow-x-auto">
+                            {generateSQL() || '-- Enter name to see SQL'}
+                        </pre>
+                    </div>
 
-                        <div className="mt-6 bg-secondary/50 p-4 rounded-lg border border-border">
-                            <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                                <Code2 className="w-3 h-3" />
-                                <span>Generated SQL</span>
-                            </div>
-                            <pre className="font-mono text-xs text-brand whitespace-pre-wrap overflow-x-auto">
-                                {generateSQL() || '-- Enter name to see SQL'}
-                            </pre>
-                        </div>
-                    </form>
-                </div>
-
-                {/* Footer */}
-                <div className="px-6 py-4 border-t border-border bg-secondary/10 flex justify-end gap-3">
-                    <Button variant="ghost" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={() => handleSubmit()}
-                        loading={loading}
-                        icon={<Play className="w-4 h-4" />}
-                    >
-                        Create
-                    </Button>
-                </div>
+                    <div className="pt-4 flex justify-end gap-3">
+                        <Button variant="ghost" onClick={onClose} type="button">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={() => handleSubmit()}
+                            loading={loading}
+                            icon={<Play className="w-4 h-4" />}
+                        >
+                            Create
+                        </Button>
+                    </div>
+                </form>
             </div>
-        </div>
+        </Modal>
     );
 }
