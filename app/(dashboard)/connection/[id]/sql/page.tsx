@@ -6,6 +6,7 @@ import { Play, Database, Server, Loader2, Save, Table2, Plus, Search, FilePlus, 
 import { Button } from '@/components/ui/Button';
 import { CreateTableForm } from '@/components/CreateTableForm'; // Import the new form
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
+import { TableInspectorModal } from '@/components/TableInspectorModal';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { cn } from '@/lib/utils';
 import { AI_MODELS, getModelProvider } from '@/lib/ai-config';
@@ -59,6 +60,9 @@ export default function ConnectionSqlPage() {
 
     // Modals (only for Import now, if we keep CreateTableForm inline)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    // Table Inspector State
+    const [inspectedTable, setInspectedTable] = useState<string | null>(null);
 
     // Load connection details
     useEffect(() => {
@@ -330,19 +334,30 @@ export default function ConnectionSqlPage() {
                                 <span>Tables ({tables.length})</span>
                             </div>
                             {filteredTables.map(table => (
-                                <button
+                                <div
                                     key={table.name}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md transition-colors group text-left"
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md transition-colors group cursor-pointer"
                                     onClick={() => handleTableClick(table.name)}
                                 >
-                                    <Table2 className="w-4 h-4 text-muted-foreground group-hover:text-brand" />
+                                    <Table2 className="w-4 h-4 text-muted-foreground group-hover:text-brand shrink-0" />
                                     <span className="truncate flex-1">{table.name}</span>
                                     {table.engine === 'PostgreSQL' && (
                                         <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">
                                             PSQL
                                         </span>
                                     )}
-                                </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setInspectedTable(table.name);
+                                        }}
+                                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-background rounded opacity-0 group-hover:opacity-100 transition-all"
+                                        title="Inspect Table Schema & Data"
+                                    >
+                                        <Bot className="w-3.5 h-3.5 hidden" /> {/* Dummy to keep imports valid if needed, or better use Info */}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
+                                    </button>
+                                </div>
                             ))}
                             {filteredTables.length === 0 && (
                                 <div className="text-center py-8 text-sm text-muted-foreground">
@@ -537,6 +552,16 @@ export default function ConnectionSqlPage() {
                 }}
                 targetDatabase={selectedDatabase}
             />
+
+            {inspectedTable && connection && (
+                <TableInspectorModal
+                    isOpen={!!inspectedTable}
+                    onClose={() => setInspectedTable(null)}
+                    tableName={inspectedTable}
+                    database={selectedDatabase}
+                    connection={connection}
+                />
+            )}
         </div>
     );
 }
