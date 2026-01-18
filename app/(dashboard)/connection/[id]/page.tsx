@@ -181,15 +181,14 @@ export default function ConnectionDetailPage() {
                     </div>
                 </div>
 
-                {isCreateDbOpen && (
-                    <CreateDatabaseModal
-                        onClose={() => setIsCreateDbOpen(false)}
-                        onSuccess={() => {
-                            setIsCreateDbOpen(false);
-                            fetchDatabases();
-                        }}
-                    />
-                )}
+                <CreateDatabaseModal
+                    isOpen={isCreateDbOpen}
+                    onClose={() => setIsCreateDbOpen(false)}
+                    onSuccess={() => {
+                        setIsCreateDbOpen(false);
+                        fetchDatabases();
+                    }}
+                />
 
                 {connection && (
                     <AddConnectionModal

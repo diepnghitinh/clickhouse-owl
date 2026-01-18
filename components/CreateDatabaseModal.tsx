@@ -11,7 +11,7 @@ interface CreateDatabaseModalProps {
 
 import { Modal } from './ui/Modal';
 
-export function CreateDatabaseModal({ onClose, onSuccess }: CreateDatabaseModalProps) {
+export function CreateDatabaseModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void; }) {
     // useEscapeKey handled by Modal
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -32,6 +32,7 @@ export function CreateDatabaseModal({ onClose, onSuccess }: CreateDatabaseModalP
         } else {
             onSuccess();
             onClose();
+            setName('');
         }
     };
 
@@ -42,60 +43,68 @@ export function CreateDatabaseModal({ onClose, onSuccess }: CreateDatabaseModalP
 
     return (
         <Modal
-            isOpen={true} // Parent controls mounting, but this component doesn't have isOpen prop? Ah, CreateDatabaseModal is conditionally rendered.
-            // Wait, previous file had isOpen usually. Let's check props.
-            // CreateDatabaseModal only has onClose and onSuccess. It's rendered via {isCreateDbOpen && <CreateDatabaseModal ... />}
-            // So we can treat isOpen as true or pass it down if we refactor parent.
-            // For now, assume it's open if mounted.
-            isOpen={true}
+            isOpen={isOpen}
             onClose={onClose}
-            title="Create Database"
-            description="Add a new database instance"
-            className="w-full max-w-md"
+            title={
+                <div className="flex items-center gap-2">
+                    <div className="p-2 bg-secondary rounded-md">
+                        <Database className="w-5 h-5 text-foreground" />
+                    </div>
+                    <div>
+                        <h2 className="font-semibold text-lg">Create Database</h2>
+                        <p className="text-sm text-muted-foreground">Add a new database instance</p>
+                    </div>
+                </div>
+            }
+            className="w-[500px] max-h-[90vh]"
         >
-            <div className="py-2">
-                <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex-1 overflow-auto space-y-6">
+                <form id="create-db-form" onSubmit={handleSubmit} className="space-y-6">
                     {error && (
-                        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+                        <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-md">
                             {error}
                         </div>
                     )}
 
                     <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Database Name</label>
+                        <label className="text-sm font-medium mb-1 block">Database Name</label>
                         <Input
                             value={name}
                             onChange={e => setName(e.target.value)}
-                            placeholder="e.g., analytics_dw"
+                            placeholder="e.g. analytics_dw"
                             autoFocus
                             required
-                            className="bg-secondary/50 border-input"
+                            className="bg-background border-input ring-offset-background"
                         />
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                            Unique identifier for the database.
+                        </p>
                     </div>
 
-                    <div className="mt-6 bg-secondary/50 p-4 rounded-lg border border-border">
-                        <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                    <div className="bg-secondary/30 p-3 rounded-md border border-border/50">
+                        <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             <Code2 className="w-3 h-3" />
-                            <span>Generated SQL</span>
+                            <span>Preview SQL</span>
                         </div>
-                        <pre className="font-mono text-xs text-brand whitespace-pre-wrap overflow-x-auto">
+                        <pre className="font-mono text-xs text-brand/90 whitespace-pre-wrap">
                             {generateSQL() || '-- Enter name to see SQL'}
                         </pre>
                     </div>
-
-                    <div className="pt-4 flex justify-end gap-3">
-                        <Button variant="ghost" onClick={onClose} type="button">
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={() => handleSubmit()}
-                            loading={loading}
-                            icon={<Play className="w-4 h-4" />}
-                        >
-                            Create
-                        </Button>
-                    </div>
                 </form>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-border bg-background shrink-0 mt-6">
+                <Button variant="ghost" onClick={onClose} type="button">
+                    Cancel
+                </Button>
+                <Button
+                    onClick={() => handleSubmit()}
+                    loading={loading}
+                    disabled={loading || !name}
+                    icon={<Plus className="w-4 h-4" />}
+                >
+                    Create
+                </Button>
             </div>
         </Modal>
     );
