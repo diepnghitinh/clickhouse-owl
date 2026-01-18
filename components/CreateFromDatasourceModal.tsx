@@ -121,17 +121,12 @@ export function CreateFromDatasourceModal({ isOpen, onClose, onSuccess, targetDa
             isOpen={isOpen}
             onClose={onClose}
             title={
-                <div className="flex items-center gap-2">
-                    <div className="p-2 bg-secondary rounded-md">
-                        <Database className="w-5 h-5 text-foreground" />
-                    </div>
-                    <div>
-                        <h2 className="font-semibold text-lg">Create from Datasource</h2>
-                        <p className="text-sm text-muted-foreground">into {targetDatabase}</p>
-                    </div>
-                </div>
+                <>
+                    <Database className="w-5 h-5 text-foreground" />
+                    Create from Datasource
+                </>
             }
-            className="w-[600px] max-h-[90vh]"
+            description={`into ${targetDatabase}`}
         >
             <div className="flex-1 overflow-auto space-y-4 min-h-[300px]">
                 {error && (
