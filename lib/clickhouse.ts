@@ -46,9 +46,14 @@ export async function queryClickHouse(
     clickhouse_settings: { database: database || undefined },
   });
 
-  const json = await resultSet.json<{ meta?: Array<{ name: string }>; data?: any[][] }>();
-  return {
-    columns: json.meta?.map(m => m.name) || [],
-    rows: (json.data as any[][]) || [],
-  };
+  try {
+    const json = await resultSet.json<{ meta?: Array<{ name: string }>; data?: any[][] }>();
+    return {
+      columns: json.meta?.map(m => m.name) || [],
+      rows: (json.data as any[][]) || [],
+    };
+  } catch (e) {
+    // If response is empty (e.g. DDL), return empty result
+    return { columns: [], rows: [] };
+  }
 }

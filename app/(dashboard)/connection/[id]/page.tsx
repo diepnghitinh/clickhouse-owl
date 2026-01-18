@@ -136,13 +136,6 @@ export default function ConnectionDetailPage() {
                     </div>
                     <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
                         <div className="flex items-center gap-3 text-muted-foreground mb-2">
-                            <Table2 className="w-5 h-5" />
-                            <span className="text-sm font-medium">Total Tables</span>
-                        </div>
-                        <div className="text-3xl font-bold text-foreground">-</div> {/* We'd need to fetch this or sum it up */}
-                    </div>
-                    <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                        <div className="flex items-center gap-3 text-muted-foreground mb-2">
                             <Settings className="w-5 h-5" />
                             <span className="text-sm font-medium">User</span>
                         </div>

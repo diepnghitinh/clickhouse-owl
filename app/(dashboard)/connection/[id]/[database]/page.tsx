@@ -6,6 +6,8 @@ import { Table2, ArrowRight, Database, Search, Plus, Trash } from 'lucide-react'
 import { Button } from '@/components/ui/Button';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { CreateTableModal } from '@/components/CreateTableModal';
+import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
+import { Dropdown } from '@/components/ui/Dropdown';
 
 interface TableInfo {
     name: string;
@@ -21,16 +23,63 @@ export default function DatabaseDetailPage() {
 
     const [tables, setTables] = useState<TableInfo[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
+
+    const [connectionName, setConnectionName] = useState<string>('');
 
     const fetchTables = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/tables?db=${databaseName}`);
+            // Get connection from localStorage
+            let connectionStr = localStorage.getItem('clickhouse_connections');
+            let connection: any = null;
+            if (connectionStr) {
+                const connections = JSON.parse(connectionStr);
+                connection = connections.find((c: any) => c.id === connectionId);
+                if (connection) {
+                    setConnectionName(connection.name);
+                }
+            }
+
+            // Fallback: If not found, maybe we can rely on session (backwards compat)
+            // But prefer explicit connection if available.
+
+            const res = await fetch(`/connection/${connectionId}/tables?db=${databaseName}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-ClickHouse-Connection': connection ? JSON.stringify(connection) : ''
+                },
+            });
+
             if (res.ok) {
                 const data = await res.json();
-                setTables(data);
+                // Map columns/rows to TableInfo.
+                // Note: Previous generic API might have returned array of objects.
+                // queryClickHouse returns { columns: [], rows: [] } usually.
+                // But the previous implementation expected array of objects from /api/tables
+                // so we need to map it.
+
+                // Also, system.tables doesn't give us columns in the same query unless we join.
+                // For list view, we might not need all columns immediately?
+                // The UI shows "table.columns.length columns".
+                // We can query system.columns or just show "N/A" for count to speed it up.
+                // Or do a second query.
+
+                // Let's do a join or separate query for columns count?
+                // Or just system.tables is enough for names.
+                // Existing UI expects: name, schema, columns[].
+
+                const tableRows = data.rows || [];
+                const tables: TableInfo[] = tableRows.map((r: any) => ({
+                    name: r[0],
+                    schema: databaseName,
+                    columns: [] // Placeholder, fetching columns for all tables is heavy
+                }));
+                setTables(tables);
             }
         } catch (e) {
             console.error(e);
@@ -72,6 +121,24 @@ export default function DatabaseDetailPage() {
         t.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const toggleTable = (name: string) => {
+        const newSelected = new Set(selectedTables);
+        if (newSelected.has(name)) {
+            newSelected.delete(name);
+        } else {
+            newSelected.add(name);
+        }
+        setSelectedTables(newSelected);
+    };
+
+    const toggleAll = () => {
+        if (selectedTables.size === filteredTables.length) {
+            setSelectedTables(new Set());
+        } else {
+            setSelectedTables(new Set(filteredTables.map(t => t.name)));
+        }
+    };
+
     return (
         <div className="flex-1 h-full overflow-y-auto bg-background p-8">
             <div className="max-w-5xl mx-auto space-y-8">
@@ -86,13 +153,23 @@ export default function DatabaseDetailPage() {
                         <div>
                             <h1 className="text-3xl font-bold text-foreground">{databaseName}</h1>
                             <div className="text-muted-foreground mt-1">
-                                Database in <span className="font-semibold">{decodeURIComponent(connectionId).replace(/-/g, ' ')}</span>
+                                Database in <span className="font-semibold">{connectionName || decodeURIComponent(connectionId).replace(/-/g, ' ')}</span>
                             </div>
                         </div>
                     </div>
-                    <Button onClick={() => setIsCreateModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
-                        Create Table
-                    </Button>
+                    <div className="flex gap-2">
+                        <Dropdown
+                            trigger={
+                                <Button icon={<Plus className="w-4 h-4" />}>
+                                    New Table
+                                </Button>
+                            }
+                            items={[
+                                { label: 'Empty Table', icon: <Table2 className="w-4 h-4" />, onClick: () => setIsCreateModalOpen(true) },
+                                { label: 'From Datasource', icon: <Database className="w-4 h-4" />, onClick: () => setIsSourceModalOpen(true) },
+                            ]}
+                        />
+                    </div>
                 </div>
 
                 {/* Search Bar */}
@@ -115,9 +192,25 @@ export default function DatabaseDetailPage() {
                         <div className="p-8 text-center text-muted-foreground">No tables found.</div>
                     ) : (
                         <div className="divide-y divide-border">
+                            {/* Header Row */}
+                            <div className="p-4 flex items-center gap-3 bg-secondary/10 border-b border-border text-sm font-medium text-muted-foreground">
+                                <input
+                                    type="checkbox"
+                                    checked={filteredTables.length > 0 && selectedTables.size === filteredTables.length}
+                                    onChange={toggleAll}
+                                    className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                                />
+                                <span>{selectedTables.size > 0 ? `${selectedTables.size} selected` : 'Name'}</span>
+                            </div>
                             {filteredTables.map((table) => (
                                 <div key={table.name} className="p-4 flex items-center justify-between hover:bg-secondary/30 transition-colors group">
                                     <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedTables.has(table.name)}
+                                            onChange={() => toggleTable(table.name)}
+                                            className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                                        />
                                         <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
                                             <Table2 className="w-4 h-4 text-foreground" />
                                         </div>
@@ -157,6 +250,16 @@ export default function DatabaseDetailPage() {
                         fetchTables();
                     }}
                     database={databaseName}
+                />
+
+                <CreateFromDatasourceModal
+                    isOpen={isSourceModalOpen}
+                    onClose={() => setIsSourceModalOpen(false)}
+                    onSuccess={() => {
+                        setIsSourceModalOpen(false);
+                        fetchTables();
+                    }}
+                    targetDatabase={databaseName}
                 />
             </div>
         </div>

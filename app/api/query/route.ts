@@ -6,6 +6,12 @@ import { z } from 'zod';
 const querySchema = z.object({
   query: z.string().min(1),
   database: z.string().optional(),
+  connection: z.object({
+    url: z.string(),
+    username: z.string(),
+    password: z.string().optional(),
+    database: z.string().optional()
+  }).optional()
 });
 
 export async function POST(request: Request) {
@@ -16,10 +22,11 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { query, database } = querySchema.parse(body);
+    const { query, database, connection } = querySchema.parse(body);
 
-    // Use session connection details if available
-    const connectionConfig = session.connection;
+    // Use provided connection or fall back to session
+    // Ideally session should be primary, but for deep linking with localStorage, we allow override
+    const connectionConfig = connection || session.connection;
 
     const result = await queryClickHouse(query, database, connectionConfig);
     return NextResponse.json(result);

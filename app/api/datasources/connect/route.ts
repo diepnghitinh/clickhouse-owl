@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     let client: Client | null = null;
     try {
         const body = await request.json();
-        const { engine, host, port, username, password, database } = body;
+        const { engine, host, port, username, password, database, ssl } = body;
 
         if (!host || !port || !username || !password || !database) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
             user: username,
             password,
             database,
-            ssl: false // TODO: Add SSL support option in UI
+            ssl: ssl ? { rejectUnauthorized: false } : false
         });
 
         await client.connect();

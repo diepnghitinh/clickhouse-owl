@@ -22,23 +22,25 @@ export default function TableDetailPage() {
 
     useEffect(() => {
         const fetchData = async () => {
+            // Get connection from localStorage
+            let connectionStr = localStorage.getItem('clickhouse_connections');
+            let connection: any = null;
+            if (connectionStr) {
+                const connections = JSON.parse(connectionStr);
+                connection = connections.find((c: any) => c.id === connectionId);
+            }
+
             try {
                 // 1. Fetch Columns (Schema)
-                // We'll reuse the existing tables endpoint which returns columns for all tables in DB, 
-                // which is not efficient for single table but works for now. 
-                // Better would be a specific endpoint or generic query endpoint.
-
-                // Let's use the query endpoint for specific table schema and data
                 const schemaQuery = `DESCRIBE "${databaseName}"."${tableName}"`;
                 const schemaRes = await fetch('/api/query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: schemaQuery, database: databaseName })
+                    body: JSON.stringify({ query: schemaQuery, database: databaseName, connection })
                 });
 
                 if (schemaRes.ok) {
                     const schemaJson = await schemaRes.json();
-                    // DESCRIBE returns: name, type, default_type, default_expression, comment, codec_expression, ttl_expression
                     setColumns(schemaJson.rows.map((r: any) => ({ name: r[0], type: r[1] })));
                 }
 
@@ -47,12 +49,12 @@ export default function TableDetailPage() {
                 const dataRes = await fetch('/api/query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: dataQuery, database: databaseName })
+                    body: JSON.stringify({ query: dataQuery, database: databaseName, connection })
                 });
 
                 if (dataRes.ok) {
                     const dataJson = await dataRes.json();
-                    setData(dataJson.rows); // Assuming generic query returns proper structure
+                    setData(dataJson.rows);
                 }
 
             } catch (e) {
@@ -63,7 +65,7 @@ export default function TableDetailPage() {
         };
 
         fetchData();
-    }, [databaseName, tableName]);
+    }, [databaseName, tableName, connectionId]);
 
     return (
         <div className="flex-1 h-full overflow-y-auto bg-background p-8">

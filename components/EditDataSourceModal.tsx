@@ -25,6 +25,7 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
         username: '',
         password: '',
         database: '',
+        ssl: false
     });
 
     useEffect(() => {
@@ -38,6 +39,7 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                 username: initialData.username || '',
                 password: initialData.password || '',
                 database: initialData.database || '',
+                ssl: initialData.ssl || false,
             });
         }
     }, [isOpen, initialData]);
@@ -98,8 +100,7 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                                 value={formData.name}
                                 onChange={handleChange}
                                 required
-                                readOnly // Name change might require drop/create which is complex, for now keep readOnly or let them create new
-                                className="bg-secondary/50"
+                                className="bg-background"
                             />
                         </div>
 
@@ -154,6 +155,20 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                                 onChange={handleChange}
                                 required
                             />
+                        </div>
+
+                        <div className="flex items-center space-x-2 pt-2">
+                            <input
+                                type="checkbox"
+                                id="edit-ssl"
+                                name="ssl"
+                                checked={formData.ssl}
+                                onChange={(e) => setFormData(prev => ({ ...prev, ssl: e.target.checked }))}
+                                className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                            />
+                            <label htmlFor="edit-ssl" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                Use SSL (Required for cloud databases)
+                            </label>
                         </div>
                     </div>
 

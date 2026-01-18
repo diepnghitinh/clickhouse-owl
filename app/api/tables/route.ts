@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   try {
     // We expect credentials in the body now
     const body = await request.json();
-    const { host, port, username, password, database, engine } = body;
+    const { host, port, username, password, database, engine, ssl } = body;
 
     if (!host || !port || !username || !password || !database) {
       return NextResponse.json({ error: 'Missing connection details' }, { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       user: username,
       password,
       database,
-      ssl: false
+      ssl: ssl ? { rejectUnauthorized: false } : false
     });
 
     await client.connect();

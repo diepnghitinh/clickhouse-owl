@@ -23,6 +23,7 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
         username: '',
         password: '',
         database: '',
+        ssl: false
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -46,6 +47,7 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
             username: '',
             password: '',
             database: '',
+            ssl: false
         });
     };
 
@@ -154,6 +156,20 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                                 onChange={handleChange}
                                 required
                             />
+                        </div>
+
+                        <div className="flex items-center space-x-2 pt-2">
+                            <input
+                                type="checkbox"
+                                id="ssl"
+                                name="ssl"
+                                checked={formData.ssl}
+                                onChange={(e) => setFormData(prev => ({ ...prev, ssl: e.target.checked }))}
+                                className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                            />
+                            <label htmlFor="ssl" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                Use SSL (Required for cloud databases)
+                            </label>
                         </div>
                     </div>
 

@@ -22,13 +22,30 @@ export function Breadcrumb() {
 
     let currentPath = '';
 
+    const [connectionNames, setConnectionNames] = React.useState<Record<string, string>>({});
+
+    React.useEffect(() => {
+        const stored = localStorage.getItem('clickhouse_connections');
+        if (stored) {
+            try {
+                const conns = JSON.parse(stored);
+                const map: Record<string, string> = {};
+                conns.forEach((c: any) => {
+                    if (c.id) map[c.id] = c.name;
+                });
+                setConnectionNames(map);
+            } catch (e) { console.error("Breadcrumb failed to parse connections", e); }
+        }
+    }, []);
+
     // Custom logic to build breadcrumbs based on known routes
     if (segments[0] === 'connection') {
         // 1. Connection
         if (segments[1]) {
             const connectionId = segments[1];
-            // Decode ID to get a readable name (assuming ID is derived from name for now)
-            const connectionName = decodeURIComponent(connectionId).replace(/-/g, ' ');
+            // Resolve name from map, or fallback to decoding
+            const connectionName = connectionNames[connectionId] || decodeURIComponent(connectionId).replace(/-/g, ' ');
+
             currentPath += `/connection/${connectionId}`;
             items.push({
                 label: connectionName,

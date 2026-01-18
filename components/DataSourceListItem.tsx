@@ -8,6 +8,12 @@ export interface DataSource {
     name: string;
     engine: string;
     details: string;
+    host?: string;
+    port?: string | number;
+    username?: string;
+    password?: string;
+    database?: string;
+    ssl?: boolean;
 }
 
 interface DataSourceListItemProps {

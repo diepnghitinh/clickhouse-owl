@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json();
-        const { sourceTable, targetTable, connection } = body;
+        const { sourceTable, targetTable, targetDatabase, connection, mode = 'import' } = body;
 
         if (!sourceTable || !targetTable || !connection) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -19,21 +19,32 @@ export async function POST(request: Request) {
 
         const { host, port, username, password, database } = connection;
 
-        // Use postgresql function to select data directly from source
-        // engine = MergeTree() ORDER BY tuple() is reasonable for a snapshot import
+        let query = '';
 
-        const query = `
-      CREATE TABLE "${targetTable}"
-      ENGINE = MergeTree()
-      ORDER BY tuple()
-      AS SELECT * FROM postgresql('${host}:${port}', '${database}', '${sourceTable}', '${username}', '${password}')
-    `;
+        const tableName = targetDatabase ? `"${targetDatabase}"."${targetTable}"` : `"${targetTable}"`;
+
+        if (mode === 'link') {
+            // Live Proxy Table
+            query = `
+                CREATE TABLE ${tableName}
+                ENGINE = PostgreSQL('${host}:${port}', '${database}', '${sourceTable}', '${username}', '${password}')
+            `;
+        } else {
+            // Snapshot Import
+            query = `
+                CREATE TABLE ${tableName}
+                ENGINE = MergeTree()
+                ORDER BY tuple()
+                AS SELECT * FROM postgresql('${host}:${port}', '${database}', '${sourceTable}', '${username}', '${password}')
+            `;
+        }
 
         await queryClickHouse(query, undefined, session.connection);
 
-        return NextResponse.json({ success: true, message: `Table ${targetTable} imported from Postgres: ${database}.${sourceTable}` });
+        const action = mode === 'link' ? 'linked' : 'imported';
+        return NextResponse.json({ success: true, message: `Table ${targetTable} ${action} from Postgres: ${database}.${sourceTable}` });
     } catch (error: any) {
-        console.error("Failed to import table:", error);
+        console.error("Failed to process table:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
