@@ -13,6 +13,8 @@ interface DatabaseInfo {
 
 
 
+import { Breadcrumb } from '@/components/Breadcrumb';
+
 export default function ConnectionDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -99,6 +101,7 @@ export default function ConnectionDetailPage() {
     return (
         <div className="flex-1 h-full overflow-y-auto bg-background p-8">
             <div className="max-w-5xl mx-auto space-y-8">
+                <Breadcrumb />
 
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -169,7 +172,7 @@ export default function ConnectionDetailPage() {
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Button variant="ghost" size="sm" onClick={() => router.push(`/tables?db=${db}`)}>
+                                            <Button variant="ghost" size="sm" onClick={() => router.push(`/connection/${params.id}/${db}`)}>
                                                 View Tables
                                             </Button>
                                             <Button variant="ghost" size="sm" iconRight={<ArrowRight className="w-4 h-4" />}>
