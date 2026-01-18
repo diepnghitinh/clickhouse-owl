@@ -54,6 +54,7 @@ export default function ConnectionSqlPage() {
     const [showAiPrompt, setShowAiPrompt] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
     const [aiGenerating, setAiGenerating] = useState(false);
+    const [aiModel, setAiModel] = useState<string>(''); // '' = auto/default
 
     // Modals (only for Import now, if we keep CreateTableForm inline)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -124,18 +125,29 @@ export default function ConnectionSqlPage() {
             const openaiKey = localStorage.getItem('openai_api_key');
             const geminiKey = localStorage.getItem('gemini_api_key');
 
-            // Prefer OpenAI, then Gemini. If neither, alert user.
+            // Determine provider and available models if not set
             let provider = '';
             let apiKey = '';
 
-            if (openaiKey) {
+            if (aiModel.startsWith('gpt')) {
                 provider = 'openai';
-                apiKey = openaiKey;
-            } else if (geminiKey) {
+                apiKey = openaiKey || '';
+            } else if (aiModel.startsWith('gemini')) {
                 provider = 'gemini';
-                apiKey = geminiKey;
+                apiKey = geminiKey || '';
             } else {
-                alert('Please configure an API Key in Settings first.');
+                // Auto-detect
+                if (openaiKey) {
+                    provider = 'openai';
+                    apiKey = openaiKey;
+                } else if (geminiKey) {
+                    provider = 'gemini';
+                    apiKey = geminiKey;
+                }
+            }
+
+            if (!apiKey) {
+                alert('Please configure an API Key in Settings first. If selecting a specific model, ensure the corresponding provider key is set.');
                 setAiGenerating(false);
                 return;
             }
@@ -154,7 +166,8 @@ export default function ConnectionSqlPage() {
                     provider,
                     apiKey,
                     prompt: aiPrompt,
-                    schemaContext
+                    schemaContext,
+                    model: aiModel || undefined
                 })
             });
 
@@ -355,10 +368,24 @@ export default function ConnectionSqlPage() {
                             {showAiPrompt && (
                                 <div className="absolute inset-0 bg-card z-10 flex items-center px-4 gap-2 animate-in fade-in slide-in-from-top-2">
                                     <Bot className="w-5 h-5 text-brand" />
+
+                                    <select
+                                        className="h-8 text-xs bg-secondary/50 border-none rounded-md focus:ring-1 focus:ring-brand focus:outline-none px-2 max-w-[100px]"
+                                        value={aiModel}
+                                        onChange={e => setAiModel(e.target.value)}
+                                    >
+                                        <option value="">Auto</option>
+                                        <option value="gpt-4o">GPT-4o</option>
+                                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                        <option value="gpt-3.5-turbo">GPT-3.5</option>
+                                        <option value="gemini-pro">Gemini Pro</option>
+                                        <option value="gemini-1.5-flash">Gemini Flash</option>
+                                    </select>
+
                                     <input
                                         autoFocus
                                         type="text"
-                                        placeholder="Ask AI to write a query (e.g. 'Show top 10 users by views')..."
+                                        placeholder="Ask AI to write a query..."
                                         className="flex-1 bg-transparent border-none focus:outline-none text-sm"
                                         value={aiPrompt}
                                         onChange={e => setAiPrompt(e.target.value)}
@@ -368,6 +395,7 @@ export default function ConnectionSqlPage() {
                                         }}
                                     />
                                     <Button
+                                        size="sm"
                                         icon={aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                         onClick={handleAskAI}
                                         disabled={aiGenerating || !aiPrompt.trim()}

@@ -5,7 +5,8 @@ const generateSchema = z.object({
     provider: z.enum(['openai', 'gemini']),
     apiKey: z.string().min(1),
     prompt: z.string().min(1),
-    schemaContext: z.string().optional()
+    schemaContext: z.string().optional(),
+    model: z.string().optional()
 });
 
 const SYSTEM_PROMPT = `You are an expert ClickHouse SQL developer. 
@@ -20,7 +21,7 @@ Rules:
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { provider, apiKey, prompt, schemaContext } = generateSchema.parse(body);
+        const { provider, apiKey, prompt, schemaContext, model } = generateSchema.parse(body);
 
         const fullPrompt = `
 Schema Context:
@@ -40,7 +41,7 @@ Generate a ClickHouse SQL query.`;
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4o', // Default to 4o or 3.5-turbo if 4o fails? Let's use gpt-4o as it's standard now, user can change if issues.
+                    model: model || 'gpt-4o', // Default to 4o or 3.5-turbo if 4o fails? Let's use gpt-4o as it's standard now, user can change if issues.
                     messages: [
                         { role: 'system', content: SYSTEM_PROMPT },
                         { role: 'user', content: fullPrompt }
@@ -58,7 +59,8 @@ Generate a ClickHouse SQL query.`;
             resultSQL = data.choices[0]?.message?.content || '';
 
         } else if (provider === 'gemini') {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+            const targetModel = model || 'gemini-pro';
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
