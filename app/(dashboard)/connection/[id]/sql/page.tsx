@@ -144,6 +144,7 @@ export default function ConnectionSqlPage() {
             // Get keys from localStorage
             const openaiKey = localStorage.getItem('openai_api_key');
             const geminiKey = localStorage.getItem('gemini_api_key');
+            const claudeKey = localStorage.getItem('claude_api_key');
 
             // Determine provider and available models
             let provider = '';
@@ -157,6 +158,9 @@ export default function ConnectionSqlPage() {
                 } else if (p === 'gemini') {
                     provider = 'gemini';
                     apiKey = geminiKey || '';
+                } else if (p === 'claude') {
+                    provider = 'claude';
+                    apiKey = claudeKey || '';
                 }
             } else {
                 // Auto-detect
@@ -166,6 +170,9 @@ export default function ConnectionSqlPage() {
                 } else if (geminiKey) {
                     provider = 'gemini';
                     apiKey = geminiKey;
+                } else if (claudeKey) {
+                    provider = 'claude';
+                    apiKey = claudeKey;
                 }
             }
 

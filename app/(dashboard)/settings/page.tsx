@@ -7,20 +7,25 @@ import { Button } from '@/components/ui/Button';
 export default function SettingsPage() {
     const [openAIKey, setOpenAIKey] = useState('');
     const [geminiKey, setGeminiKey] = useState('');
+    const [claudeKey, setClaudeKey] = useState('');
     const [showOpenAI, setShowOpenAI] = useState(false);
     const [showGemini, setShowGemini] = useState(false);
+    const [showClaude, setShowClaude] = useState(false);
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
         const storedOpenAI = localStorage.getItem('openai_api_key');
         const storedGemini = localStorage.getItem('gemini_api_key');
+        const storedClaude = localStorage.getItem('claude_api_key');
         if (storedOpenAI) setOpenAIKey(storedOpenAI);
         if (storedGemini) setGeminiKey(storedGemini);
+        if (storedClaude) setClaudeKey(storedClaude);
     }, []);
 
     const handleSave = () => {
         localStorage.setItem('openai_api_key', openAIKey);
         localStorage.setItem('gemini_api_key', geminiKey);
+        localStorage.setItem('claude_api_key', claudeKey);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
     };
@@ -61,6 +66,28 @@ export default function SettingsPage() {
                     <p className="text-xs text-muted-foreground">Used for GPT-4 / GPT-3.5 models.</p>
                 </div>
 
+                {/* Claude */}
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Anthropic Claude API Key</label>
+                    <div className="relative">
+                        <input
+                            type={showClaude ? 'text' : 'password'}
+                            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-brand/50"
+                            placeholder="sk-ant-..."
+                            value={claudeKey}
+                            onChange={(e) => setClaudeKey(e.target.value)}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowClaude(!showClaude)}
+                            className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                        >
+                            {showClaude ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Used for Claude 3 models (Sonnet, Opus, Haiku).</p>
+                </div>
+
                 {/* Gemini */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Google Gemini API Key</label>
@@ -80,7 +107,7 @@ export default function SettingsPage() {
                             {showGemini ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                     </div>
-                    <p className="text-xs text-muted-foreground">Used for Gemini Pro models.</p>
+                    <p className="text-xs text-muted-foreground">Used for Gemini models.</p>
                 </div>
 
                 <div className="pt-4 flex items-center gap-4">

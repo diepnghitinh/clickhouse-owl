@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { generateSQL } from '@/lib/ai-config';
 
 const generateSchema = z.object({
-    provider: z.enum(['openai', 'gemini']),
+    provider: z.enum(['openai', 'gemini', 'claude']),
     apiKey: z.string().min(1),
     prompt: z.string().min(1),
     schemaContext: z.string().optional(),

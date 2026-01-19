@@ -1,7 +1,7 @@
 export interface AIModel {
     id: string;
     name: string;
-    provider: 'openai' | 'gemini';
+    provider: 'openai' | 'gemini' | 'claude';
 }
 
 export const AI_MODELS: AIModel[] = [
@@ -13,9 +13,13 @@ export const AI_MODELS: AIModel[] = [
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini' },
     { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', provider: 'gemini' },
     { id: 'gemini-flash-latest', name: 'Gemini Flash (Free)', provider: 'gemini' },
+    { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet', provider: 'claude' },
+    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'claude' },
+    { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', provider: 'claude' },
+    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'claude' },
 ];
 
-export const getModelProvider = (modelId: string): 'openai' | 'gemini' | null => {
+export const getModelProvider = (modelId: string): 'openai' | 'gemini' | 'claude' | null => {
     const model = AI_MODELS.find(m => m.id === modelId);
     return model ? model.provider : null;
 };
@@ -31,7 +35,7 @@ Rules:
 `;
 
 interface GenerateSQLParams {
-    provider: 'openai' | 'gemini';
+    provider: 'openai' | 'gemini' | 'claude';
     apiKey: string;
     prompt: string;
     schemaContext?: string;
@@ -95,6 +99,32 @@ Generate a ClickHouse SQL query.`;
 
         const data = await res.json();
         return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } else if (provider === 'claude') {
+        const targetModel = model || 'claude-3-haiku-20240307';
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: targetModel,
+                max_tokens: 1024,
+                system: SYSTEM_PROMPT,
+                messages: [
+                    { role: 'user', content: fullPrompt }
+                ]
+            })
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(`Claude API Error: ${err.error?.message || res.statusText}`);
+        }
+
+        const data = await res.json();
+        return data.content[0]?.text || '';
     }
 
     throw new Error('Invalid provider');
