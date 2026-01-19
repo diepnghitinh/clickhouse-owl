@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { CreateTableForm } from '@/components/CreateTableForm';
+import { format } from 'sql-formatter';
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
 import { TableInspectorModal } from '@/components/TableInspectorModal';
 import { getModelProvider } from '@/lib/ai-config';
@@ -295,6 +296,18 @@ export default function ConnectionSqlPage() {
         setActiveView('query');
     };
 
+    const handleFormat = () => {
+        try {
+            const formatted = format(query, {
+                language: 'clickhouse',
+                keywordCase: 'upper',
+            });
+            setQuery(formatted);
+        } catch (e) {
+            console.error("Format error", e);
+        }
+    };
+
     return (
         <div className="flex h-full bg-background overflow-hidden">
             <SqlSidebar
@@ -338,6 +351,7 @@ export default function ConnectionSqlPage() {
                             hasContext={tables.length > 0}
                             executing={executing}
                             onRun={executeQuery}
+                            onFormat={handleFormat}
                         />
 
                         {/* Split Panes: Editor & Results */}

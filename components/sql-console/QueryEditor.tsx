@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import Editor, { useMonaco } from '@monaco-editor/react';
 import { cn } from '@/lib/utils';
 
 interface QueryEditorProps {
@@ -15,12 +16,7 @@ export function QueryEditor({ query, onChange, onRun, className }: QueryEditorPr
     const startY = useRef(0);
     const startHeight = useRef(0);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-            onRun();
-        }
-    };
-
+    // Resize Logic
     const handleMouseDown = (e: React.MouseEvent) => {
         isDragging.current = true;
         startY.current = e.clientY;
@@ -47,6 +43,14 @@ export function QueryEditor({ query, onChange, onRun, className }: QueryEditorPr
         document.removeEventListener('mouseup', handleMouseUp);
     };
 
+    // Monaco Configuration
+    const handleEditorDidMount = (editor: any, monaco: any) => {
+        // Add execute shortcut (Cmd+Enter)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            onRun();
+        });
+    };
+
     return (
         <div
             className={cn("flex flex-col border-b border-border bg-background relative shrink-0", className)}
@@ -54,13 +58,21 @@ export function QueryEditor({ query, onChange, onRun, className }: QueryEditorPr
             ref={containerRef}
         >
             <div className="flex-1 min-h-0 relative">
-                <textarea
-                    className="w-full h-full bg-secondary/10 p-4 font-mono text-sm resize-none focus:outline-none focus:border-brand/50 custom-scrollbar"
+                <Editor
+                    height="100%"
+                    defaultLanguage="sql"
                     value={query}
-                    onChange={(e) => onChange(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="SELECT * FROM table..."
-                    spellCheck={false}
+                    onChange={(value) => onChange(value || '')}
+                    theme="vs-dark" // Assuming dark mode based on previous UI
+                    onMount={handleEditorDidMount}
+                    options={{
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        fontSize: 14,
+                        fontFamily: 'monospace',
+                        automaticLayout: true,
+                        padding: { top: 16, bottom: 16 },
+                    }}
                 />
             </div>
 
