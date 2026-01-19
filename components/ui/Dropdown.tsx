@@ -7,6 +7,7 @@ interface DropdownItem {
     onClick: () => void;
     danger?: boolean;
     icon?: React.ReactNode;
+    className?: string;
 }
 
 interface DropdownProps {
@@ -59,7 +60,8 @@ export function Dropdown({ items, trigger, menuWidth = "w-48" }: DropdownProps) 
                                 }}
                                 className={cn(
                                     "w-full text-left px-3 py-2 text-xs font-medium flex items-center gap-2 hover:bg-secondary",
-                                    item.danger ? "text-red-500 hover:bg-red-500/10" : "text-foreground"
+                                    item.danger ? "text-red-500 hover:bg-red-500/10" : "text-foreground",
+                                    item.className
                                 )}
                             >
                                 {item.icon && <span className="w-3 h-3">{item.icon}</span>}

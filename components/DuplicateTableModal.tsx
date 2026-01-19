@@ -9,7 +9,7 @@ interface DuplicateTableModalProps {
     onClose: () => void;
     tableName: string;
     description?: string; // e.g. "Create a copy of the table structure"
-    onDuplicate: (newName: string, engine: string) => Promise<void>;
+    onDuplicate: (newName: string, engine: string, copyData: boolean) => Promise<void>;
 }
 
 export function DuplicateTableModal({
@@ -20,6 +20,7 @@ export function DuplicateTableModal({
 }: DuplicateTableModalProps) {
     const [newName, setNewName] = useState('');
     const [engine, setEngine] = useState('MergeTree');
+    const [copyData, setCopyData] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +29,7 @@ export function DuplicateTableModal({
         if (isOpen) {
             setNewName(`${tableName}_copy`);
             setEngine('MergeTree');
+            setCopyData(false);
             setError(null);
             setLoading(false);
         }
@@ -41,7 +43,7 @@ export function DuplicateTableModal({
         setError(null);
 
         try {
-            await onDuplicate(newName, engine);
+            await onDuplicate(newName, engine, copyData);
             onClose();
         } catch (err: any) {
             setError(err.message || 'Failed to duplicate table');
@@ -101,13 +103,26 @@ export function DuplicateTableModal({
                     </p>
                 </div>
 
+                <div className="flex items-center gap-2">
+                    <input
+                        id="copy-data"
+                        type="checkbox"
+                        checked={copyData}
+                        onChange={(e) => setCopyData(e.target.checked)}
+                        className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                    />
+                    <label htmlFor="copy-data" className="text-sm font-medium cursor-pointer">
+                        Copy Data (INSERT INTO ... SELECT * FROM ...)
+                    </label>
+                </div>
+
                 <div className="pt-4 flex justify-end gap-2">
                     <Button type="button" variant="ghost" onClick={onClose}>
                         Cancel
                     </Button>
                     <Button type="submit" disabled={loading || !newName.trim()}>
                         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                        Create Duplicate
+                        {copyData ? 'Duplicate & Copy Data' : 'Create Duplicate'}
                     </Button>
                 </div>
             </form>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Search, Plus, FilePlus, Import, Loader2, Table2, Bot, Copy } from 'lucide-react';
+import { Database, Search, Plus, FilePlus, Import, Loader2, Table2, Bot, Copy, MoreVertical, Info, Pencil, Trash2 } from 'lucide-react';
 import { Dropdown } from '@/components/ui/Dropdown';
 
 export interface TableInfo {
@@ -18,6 +18,8 @@ interface SqlSidebarProps {
     onCreateTable: () => void;
     onImportTable: () => void;
     onDuplicateTable: (tableName: string) => void;
+    onRenameTable: (tableName: string) => void;
+    onDeleteTable: (tableName: string) => void;
 }
 
 export function SqlSidebar({
@@ -30,7 +32,9 @@ export function SqlSidebar({
     onInspectTable,
     onCreateTable,
     onImportTable,
-    onDuplicateTable
+    onDuplicateTable,
+    onRenameTable,
+    onDeleteTable
 }: SqlSidebarProps) {
     const [tableSearch, setTableSearch] = useState('');
     const filteredTables = tables.filter(t => t.name.toLowerCase().includes(tableSearch.toLowerCase()));
@@ -118,27 +122,38 @@ export function SqlSidebar({
                                     {table.engine === 'PostgreSQL' ? 'PSQL' : table.engine}
                                 </span>
 
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onDuplicateTable(table.name);
-                                        }}
-                                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-background rounded"
-                                        title="Duplicate Table Schema"
-                                    >
-                                        <Copy className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onInspectTable(table.name);
-                                        }}
-                                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-background rounded"
-                                        title="Inspect Table Schema & Data"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                                    </button>
+                                <div onClick={(e) => e.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-all">
+                                    <Dropdown
+                                        menuWidth="w-48"
+                                        trigger={
+                                            <button className="p-1 text-muted-foreground hover:text-foreground hover:bg-background rounded">
+                                                <MoreVertical className="w-4 h-4" />
+                                            </button>
+                                        }
+                                        items={[
+                                            {
+                                                label: 'Inspect Schema',
+                                                icon: <Info className="w-4 h-4" />,
+                                                onClick: () => onInspectTable(table.name)
+                                            },
+                                            {
+                                                label: 'Duplicate Table',
+                                                icon: <Copy className="w-4 h-4" />,
+                                                onClick: () => onDuplicateTable(table.name)
+                                            },
+                                            {
+                                                label: 'Rename Table',
+                                                icon: <Pencil className="w-4 h-4" />,
+                                                onClick: () => onRenameTable(table.name)
+                                            },
+                                            {
+                                                label: 'Delete Table',
+                                                icon: <Trash2 className="w-4 h-4 text-destructive" />,
+                                                className: 'text-destructive focus:text-destructive',
+                                                onClick: () => onDeleteTable(table.name)
+                                            }
+                                        ]}
+                                    />
                                 </div>
                             </div>
                         ))}

@@ -6,7 +6,14 @@ import { CreateTableForm } from '@/components/CreateTableForm';
 import { format } from 'sql-formatter';
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
 import { TableInspectorModal } from '@/components/TableInspectorModal';
+import { RenameTableModal } from '@/components/RenameTableModal';
+import { DeleteTableModal } from '@/components/DeleteTableModal';
 import { DuplicateTableModal } from '@/components/DuplicateTableModal';
+
+// ... (existing imports)
+
+
+
 import { getModelProvider } from '@/lib/ai-config';
 
 // New Components
@@ -63,6 +70,8 @@ export default function ConnectionSqlPage() {
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [inspectedTable, setInspectedTable] = useState<string | null>(null);
     const [duplicatingTable, setDuplicatingTable] = useState<string | null>(null);
+    const [renamingTable, setRenamingTable] = useState<string | null>(null);
+    const [deletingTable, setDeletingTable] = useState<string | null>(null);
 
     // Load connection details
     useEffect(() => {
@@ -352,12 +361,13 @@ export default function ConnectionSqlPage() {
         }
     };
 
-    const executeDuplicateTable = async (newName: string, engine: string) => {
+    const executeDuplicateTable = async (newName: string, engine: string, copyData: boolean) => {
         if (!connection || !selectedDatabase || !duplicatingTable) return;
 
         const ddl = `CREATE TABLE ${selectedDatabase}.${newName} ENGINE = ${engine} AS ${selectedDatabase}.${duplicatingTable}`;
 
         try {
+            // 1. Create Table Structure
             const res = await fetch('/api/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -374,9 +384,82 @@ export default function ConnectionSqlPage() {
                 throw new Error(data.error);
             }
 
+            // 2. Copy Data (if requested)
+            if (copyData) {
+                const dml = `INSERT INTO ${selectedDatabase}.${newName} SELECT * FROM ${selectedDatabase}.${duplicatingTable}`;
+                const resData = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: dml,
+                        database: selectedDatabase,
+                        connection: connection
+                    })
+                });
+
+                const dataData = await resData.json();
+                if (dataData.error) {
+                    throw new Error(`Table created but failed to copy data: ${dataData.error}`);
+                }
+            }
+
             // Refresh tables
             fetchTables();
 
+        } catch (e: any) {
+            throw e;
+        }
+    };
+
+    const handleRenameTable = async (newName: string) => {
+        if (!connection || !selectedDatabase || !renamingTable) return;
+
+        try {
+            const query = `RENAME TABLE ${selectedDatabase}.${renamingTable} TO ${selectedDatabase}.${newName}`;
+            const res = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    database: selectedDatabase,
+                    connection: connection
+                })
+            });
+
+            const data = await res.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            fetchTables();
+            setRenamingTable(null);
+        } catch (e: any) {
+            throw e;
+        }
+    };
+
+    const handleDeleteTable = async () => {
+        if (!connection || !selectedDatabase || !deletingTable) return;
+
+        try {
+            const query = `DROP TABLE ${selectedDatabase}.${deletingTable}`;
+            const res = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    database: selectedDatabase,
+                    connection: connection
+                })
+            });
+
+            const data = await res.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            fetchTables();
+            setDeletingTable(null);
         } catch (e: any) {
             throw e;
         }
@@ -412,6 +495,8 @@ export default function ConnectionSqlPage() {
                 onCreateTable={() => setActiveView('create_table')}
                 onImportTable={() => setIsImportModalOpen(true)}
                 onDuplicateTable={setDuplicatingTable}
+                onRenameTable={setRenamingTable}
+                onDeleteTable={setDeletingTable}
             />
 
             {/* Main Content Area */}
@@ -499,6 +584,24 @@ export default function ConnectionSqlPage() {
                     onClose={() => setDuplicatingTable(null)}
                     tableName={duplicatingTable}
                     onDuplicate={executeDuplicateTable}
+                />
+            )}
+
+            {renamingTable && (
+                <RenameTableModal
+                    isOpen={!!renamingTable}
+                    onClose={() => setRenamingTable(null)}
+                    currentName={renamingTable}
+                    onRename={handleRenameTable}
+                />
+            )}
+
+            {deletingTable && (
+                <DeleteTableModal
+                    isOpen={!!deletingTable}
+                    onClose={() => setDeletingTable(null)}
+                    tableName={deletingTable}
+                    onDelete={handleDeleteTable}
                 />
             )}
         </div>
