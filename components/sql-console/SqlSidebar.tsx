@@ -107,11 +107,14 @@ export function SqlSidebar({
                             >
                                 <Table2 className="w-4 h-4 text-muted-foreground group-hover:text-brand shrink-0" />
                                 <span className="truncate flex-1">{table.name}</span>
-                                {table.engine === 'PostgreSQL' && (
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">
-                                        PSQL
-                                    </span>
-                                )}
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${table.engine === 'PostgreSQL'
+                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                        : table.engine.includes('MergeTree')
+                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                            : 'bg-secondary text-muted-foreground'
+                                    }`}>
+                                    {table.engine === 'PostgreSQL' ? 'PSQL' : table.engine}
+                                </span>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();

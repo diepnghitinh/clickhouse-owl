@@ -61,29 +61,53 @@ export class ClickHouseRepository {
         const MAX_RETRIES = 3;
         let lastError: any;
 
+        // Simple heuristic to decide if we expect rows back
+        const trimmedQuery = query.trim().toUpperCase();
+        const isDataQuery = trimmedQuery.startsWith('SELECT') ||
+            trimmedQuery.startsWith('SHOW') ||
+            trimmedQuery.startsWith('WITH') ||
+            trimmedQuery.startsWith('EXPLAIN') ||
+            trimmedQuery.startsWith('DESCRIBE') ||
+            trimmedQuery.startsWith('Num');
+
         for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
             try {
-                const resultSet = await client.query({
-                    query,
-                    format: 'JSONCompact',
-                    clickhouse_settings: { database: database || undefined },
-                });
+                if (isDataQuery) {
+                    const resultSet = await client.query({
+                        query,
+                        format: 'JSONCompact',
+                        clickhouse_settings: { database: database || undefined },
+                    });
 
-                const json = await resultSet.json<{
-                    meta?: Array<{ name: string }>;
-                    data?: any[][];
-                    statistics?: {
-                        elapsed: number;
-                        rows_read: number;
-                        bytes_read: number;
-                    }
-                }>();
+                    const json = await resultSet.json<{
+                        meta?: Array<{ name: string }>;
+                        data?: any[][];
+                        statistics?: {
+                            elapsed: number;
+                            rows_read: number;
+                            bytes_read: number;
+                        }
+                    }>();
 
-                return {
-                    columns: json.meta?.map(m => m.name) || [],
-                    rows: (json.data as any[][]) || [],
-                    statistics: json.statistics
-                };
+                    return {
+                        columns: json.meta?.map(m => m.name) || [],
+                        rows: (json.data as any[][]) || [],
+                        statistics: json.statistics
+                    };
+                } else {
+                    // DDL or other commands
+                    const result = await client.command({
+                        query,
+                        clickhouse_settings: { database: database || undefined },
+                    });
+
+                    // result of command is usually just acknowledgment
+                    return {
+                        columns: ['result'],
+                        rows: [['Ok.']],
+                        statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 }
+                    };
+                }
             } catch (e: any) {
                 lastError = e;
                 const isConnectionRefused = e.message.includes('ECONNREFUSED') || e.code === 'ECONNREFUSED';
@@ -111,7 +135,8 @@ export class ClickHouseRepository {
             throw new Error(`Failed to connect to ClickHouse after ${MAX_RETRIES} retries: ${lastError.message}`);
         }
 
-        return { columns: [], rows: [] };
+        // Propagate other errors so the UI sees them (e.g. Table already exists)
+        throw new Error(lastError.message || "Unknown error occurred");
     }
 
     // Static helper to match previous usage pattern if needed
