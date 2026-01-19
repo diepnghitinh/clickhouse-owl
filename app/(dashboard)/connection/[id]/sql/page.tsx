@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Play, Database, Server, Loader2, Save, Table2, Plus, Search, FilePlus, Import, Bot, Sparkles, X, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { CreateTableForm } from '@/components/CreateTableForm'; // Import the new form
+import { CreateTableForm } from '@/components/CreateTableForm';
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
 import { TableInspectorModal } from '@/components/TableInspectorModal';
-import { Dropdown } from '@/components/ui/Dropdown';
-import { cn } from '@/lib/utils';
-import { AI_MODELS, getModelProvider } from '@/lib/ai-config';
+import { getModelProvider } from '@/lib/ai-config';
+
+// New Components
+import { SqlSidebar, TableInfo } from '@/components/sql-console/SqlSidebar';
+import { SqlToolbar } from '@/components/sql-console/SqlToolbar';
+import { QueryEditor } from '@/components/sql-console/QueryEditor';
+import { ResultsTable } from '@/components/sql-console/ResultsTable';
 
 interface Connection {
     id: string;
@@ -18,11 +20,6 @@ interface Connection {
     user: string;
     password?: string;
     database?: string;
-}
-
-interface TableInfo {
-    name: string;
-    engine: string;
 }
 
 type ViewMode = 'query' | 'create_table' | 'import_datasource';
@@ -38,7 +35,6 @@ export default function ConnectionSqlPage() {
     // Table browser state
     const [tables, setTables] = useState<TableInfo[]>([]);
     const [loadingTables, setLoadingTables] = useState(false);
-    const [tableSearch, setTableSearch] = useState('');
 
     // View State
     const [activeView, setActiveView] = useState<ViewMode>('query');
@@ -59,10 +55,8 @@ export default function ConnectionSqlPage() {
     const [aiModel, setAiModel] = useState<string>(''); // '' = auto/default
     const [cachingContext, setCachingContext] = useState(false);
 
-    // Modals (only for Import now, if we keep CreateTableForm inline)
+    // Modals
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-
-    // Table Inspector State
     const [inspectedTable, setInspectedTable] = useState<string | null>(null);
 
     // Load connection details
@@ -122,13 +116,10 @@ export default function ConnectionSqlPage() {
         fetchTables();
     }, [connection, selectedDatabase]);
 
-    const [statusMessage, setStatusMessage] = useState('');
-
     const handleAskAI = async () => {
         if (!aiPrompt.trim()) return;
 
         setAiGenerating(true);
-        setStatusMessage('Loading schema & data context...');
 
         try {
             // 1. Auto-cache context first
@@ -148,8 +139,6 @@ export default function ConnectionSqlPage() {
             } catch (err) {
                 console.error("Failed to auto-cache (proceeding anyway):", err);
             }
-
-            setStatusMessage('Generating query...');
 
             // Get keys from localStorage
             const openaiKey = localStorage.getItem('openai_api_key');
@@ -182,7 +171,6 @@ export default function ConnectionSqlPage() {
             if (!apiKey) {
                 alert('Please configure an API Key in Settings first. If selecting a specific model, ensure the corresponding provider key is set.');
                 setAiGenerating(false);
-                setStatusMessage('');
                 return;
             }
 
@@ -219,7 +207,6 @@ export default function ConnectionSqlPage() {
             alert(e.message);
         } finally {
             setAiGenerating(false);
-            setStatusMessage('');
         }
     };
 
@@ -240,8 +227,6 @@ export default function ConnectionSqlPage() {
 
             if (!res.ok) {
                 console.error('Failed to cache context');
-            } else {
-                // optionally show a success toast
             }
         } catch (e) {
             console.error(e);
@@ -305,122 +290,24 @@ export default function ConnectionSqlPage() {
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-            executeQuery();
-        }
-    };
-
-    const filteredTables = tables.filter(t => t.name.toLowerCase().includes(tableSearch.toLowerCase()));
-
     const handleTableClick = (tableName: string) => {
         setQuery(`SELECT * FROM ${tableName} LIMIT 100`);
-        setActiveView('query'); // Switch back to query view if not already
+        setActiveView('query');
     };
 
     return (
         <div className="flex h-full bg-background overflow-hidden">
-            {/* Sidebar - Table Browser */}
-            <div className="w-[300px] border-r border-border bg-card flex flex-col shrink-0">
-                <div className="p-4 border-b border-border space-y-4">
-                    {/* Database Selector */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Database</label>
-                        <div className="relative">
-                            <Database className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-                            <select
-                                className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand/50 appearance-none"
-                                value={selectedDatabase}
-                                onChange={(e) => setSelectedDatabase(e.target.value)}
-                            >
-                                {databases.map(db => (
-                                    <option key={db} value={db}>{db}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* New Table / Actions */}
-                    <Dropdown
-                        menuWidth="w-56"
-                        trigger={
-                            <button className="w-full flex items-center justify-center gap-2 bg-foreground text-background hover:bg-foreground/90 py-2 rounded-md text-sm font-medium transition-colors">
-                                <Plus className="w-4 h-4" />
-                                <span>New Table</span>
-                            </button>
-                        }
-                        items={[
-                            {
-                                label: 'Empty Table',
-                                icon: <FilePlus className="w-4 h-4" />,
-                                onClick: () => setActiveView('create_table')
-                            },
-                            {
-                                label: 'From Datasource',
-                                icon: <Import className="w-4 h-4" />,
-                                onClick: () => setIsImportModalOpen(true)
-                            }
-                        ]}
-                    />
-
-                    {/* Search */}
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
-                        <input
-                            type="text"
-                            placeholder="Search tables..."
-                            className="w-full pl-8 pr-3 py-2 bg-secondary/30 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand/50"
-                            value={tableSearch}
-                            onChange={e => setTableSearch(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-2">
-                    {loadingTables ? (
-                        <div className="flex justify-center py-8">
-                            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                        </div>
-                    ) : (
-                        <div className="space-y-0.5">
-                            <div className="px-3 py-2 flex items-center justify-between text-xs font-medium text-muted-foreground">
-                                <span>Tables ({tables.length})</span>
-                            </div>
-                            {filteredTables.map(table => (
-                                <div
-                                    key={table.name}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md transition-colors group cursor-pointer"
-                                    onClick={() => handleTableClick(table.name)}
-                                >
-                                    <Table2 className="w-4 h-4 text-muted-foreground group-hover:text-brand shrink-0" />
-                                    <span className="truncate flex-1">{table.name}</span>
-                                    {table.engine === 'PostgreSQL' && (
-                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">
-                                            PSQL
-                                        </span>
-                                    )}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setInspectedTable(table.name);
-                                        }}
-                                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-background rounded opacity-0 group-hover:opacity-100 transition-all"
-                                        title="Inspect Table Schema & Data"
-                                    >
-                                        <Bot className="w-3.5 h-3.5 hidden" /> {/* Dummy to keep imports valid if needed, or better use Info */}
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                                    </button>
-                                </div>
-                            ))}
-                            {filteredTables.length === 0 && (
-                                <div className="text-center py-8 text-sm text-muted-foreground">
-                                    No tables found
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
+            <SqlSidebar
+                databases={databases}
+                selectedDatabase={selectedDatabase}
+                onSelectDatabase={setSelectedDatabase}
+                tables={tables}
+                loadingTables={loadingTables}
+                onTableClick={handleTableClick}
+                onInspectTable={setInspectedTable}
+                onCreateTable={() => setActiveView('create_table')}
+                onImportTable={() => setIsImportModalOpen(true)}
+            />
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 bg-background">
@@ -435,172 +322,37 @@ export default function ConnectionSqlPage() {
                     />
                 ) : (
                     <div className="flex-1 flex flex-col min-h-0">
-                        {/* Query Editor Toolbar */}
-                        <div className="border-b border-border bg-card p-4 flex items-center justify-between gap-4 shrink-0 relative">
-                            {showAiPrompt && (
-                                <div className="absolute inset-0 bg-card z-10 flex items-center px-4 gap-2 animate-in fade-in slide-in-from-top-2">
-                                    <Bot className="w-5 h-5 text-brand" />
+                        <SqlToolbar
+                            connection={connection}
+                            selectedDatabase={selectedDatabase}
+                            showAiPrompt={showAiPrompt}
+                            setShowAiPrompt={setShowAiPrompt}
+                            aiModel={aiModel}
+                            setAiModel={setAiModel}
+                            aiPrompt={aiPrompt}
+                            setAiPrompt={setAiPrompt}
+                            aiGenerating={aiGenerating}
+                            onAskAi={handleAskAI}
+                            cachingContext={cachingContext}
+                            onRefreshContext={handleRefreshContext}
+                            hasContext={tables.length > 0}
+                            executing={executing}
+                            onRun={executeQuery}
+                        />
 
-                                    <select
-                                        className="h-8 text-xs bg-secondary/50 border-none rounded-md focus:ring-1 focus:ring-brand focus:outline-none px-2 max-w-[100px]"
-                                        value={aiModel}
-                                        onChange={e => setAiModel(e.target.value)}
-                                    >
-                                        <option value="">Auto</option>
-                                        {AI_MODELS.map(model => (
-                                            <option key={model.id} value={model.id}>
-                                                {model.name}
-                                            </option>
-                                        ))}
-                                    </select>
-
-                                    <input
-                                        autoFocus
-                                        type="text"
-                                        placeholder="Ask AI to write a query..."
-                                        className="flex-1 bg-transparent border-none focus:outline-none text-sm"
-                                        value={aiPrompt}
-                                        onChange={e => setAiPrompt(e.target.value)}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter') handleAskAI();
-                                            if (e.key === 'Escape') setShowAiPrompt(false);
-                                        }}
-                                    />
-                                    <Button
-                                        size="sm"
-                                        icon={aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                        onClick={handleAskAI}
-                                        disabled={aiGenerating || !aiPrompt.trim()}
-                                    >
-                                        {aiGenerating ? (statusMessage || 'Generating...') : 'Generate'}
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        icon={cachingContext ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                                        onClick={handleRefreshContext}
-                                        disabled={cachingContext || tables.length === 0}
-                                        title="Refresh AI Context (Schema & Data)"
-                                        className="border-none bg-transparent hover:bg-secondary/50"
-                                    />
-                                    <button onClick={() => setShowAiPrompt(false)} className="p-1 hover:bg-secondary rounded-md">
-                                        <X className="w-4 h-4 text-muted-foreground" />
-                                    </button>
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/30 rounded-md border border-border">
-                                    <Server className="w-4 h-4 text-muted-foreground" />
-                                    <span className="text-sm font-medium">{connection?.name || 'Loading...'}</span>
-                                </div>
-                                <div className="h-4 w-px bg-border" />
-                                <span className="text-sm text-muted-foreground font-mono">
-                                    {selectedDatabase ? `USE ${selectedDatabase}` : 'No Database'}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setShowAiPrompt(true)}
-                                    className="gap-2 text-brand border-brand/20 hover:bg-brand/10"
-                                    icon={<Sparkles className="w-4 h-4" />}
-                                >
-                                    Ask AI
-                                </Button>
-
-                                <Button
-                                    size="sm"
-                                    onClick={executeQuery}
-                                    disabled={executing || !connection}
-                                    loading={executing}
-                                    icon={<Play className="w-4 h-4 fill-current" />}
-                                    className="gap-2"
-                                >
-                                    Run
-                                </Button>
-                                <span className="text-xs text-muted-foreground mr-2">(Cmd+Enter)</span>
-                            </div>
-                        </div>
-
-                        {/* Editor Area */}
+                        {/* Split Panes: Editor & Results */}
                         <div className="flex-1 flex flex-col min-h-0">
-                            <div className="h-1/2 border-b border-border p-4 relative bg-background">
-                                <textarea
-                                    className="w-full h-full bg-secondary/10 p-4 font-mono text-sm resize-none focus:outline-none rounded-lg border border-border focus:border-brand/50 custom-scrollbar"
-                                    value={query}
-                                    onChange={(e) => setQuery(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="SELECT * FROM table..."
-                                    spellCheck={false}
-                                />
-                            </div>
+                            <QueryEditor
+                                query={query}
+                                onChange={setQuery}
+                                onRun={executeQuery}
+                            />
 
-                            {/* Results Area */}
-                            <div className="h-1/2 bg-card overflow-hidden flex flex-col">
-                                <div className="border-b border-border px-4 py-2 bg-secondary/10 flex items-center justify-between shrink-0">
-                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Results</span>
-                                    {results && (
-                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                            <span>
-                                                {results.rows.length} rows • {results.columns.length} columns
-                                            </span>
-                                            {results.statistics && (
-                                                <>
-                                                    <span className="w-px h-3 bg-border" />
-                                                    <span>{results.statistics.elapsed.toFixed(3)}s</span>
-                                                    <span className="w-px h-3 bg-border" />
-                                                    <span>{results.statistics.rows_read} rows read</span>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex-1 overflow-auto p-4 custom-scrollbar">
-                                    {error && (
-                                        <div className="p-4 rounded-lg bg-destructive/10 text-destructive border border-destructive/20 font-mono text-sm whitespace-pre-wrap">
-                                            {error}
-                                        </div>
-                                    )}
-
-                                    {results && (
-                                        <div className="rounded-lg border border-border overflow-hidden inline-block min-w-full align-top">
-                                            <table className="min-w-full text-sm text-left">
-                                                <thead className="text-xs text-muted-foreground uppercase bg-secondary/50 sticky top-0">
-                                                    <tr>
-                                                        {results.columns.map((col, i) => (
-                                                            <th key={i} className="px-4 py-3 font-medium whitespace-nowrap border-b border-border bg-secondary/50">
-                                                                {col}
-                                                            </th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-border bg-card">
-                                                    {results.rows.map((row, i) => (
-                                                        <tr key={i} className="hover:bg-secondary/20">
-                                                            {row.map((cell, j) => (
-                                                                <td key={j} className="px-4 py-2 whitespace-nowrap max-w-[300px] truncate border-r border-border/50 last:border-r-0 font-mono text-xs">
-                                                                    {typeof cell === 'object' ? JSON.stringify(cell) : String(cell)}
-                                                                </td>
-                                                            ))}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-
-                                    {!results && !error && !executing && (
-                                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
-                                            <Play className="w-12 h-12 mb-4 stroke-1" />
-                                            <p>Run a query to see results</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <ResultsTable
+                                results={results}
+                                error={error}
+                                executing={executing}
+                            />
                         </div>
                     </div>
                 )}
