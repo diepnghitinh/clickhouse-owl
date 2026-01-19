@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Loader2, Play, Sparkles, X, RefreshCw, Server, AlignLeft } from 'lucide-react';
+import { Bot, Loader2, Play, Sparkles, X, RefreshCw, Server, AlignLeft, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { AI_MODELS } from '@/lib/ai-config';
 
@@ -24,6 +24,7 @@ interface SqlToolbarProps {
     executing: boolean;
     onRun: () => void;
     onFormat: () => void;
+    onAnalyze: () => void;
 }
 
 export function SqlToolbar({
@@ -42,7 +43,8 @@ export function SqlToolbar({
     hasContext,
     executing,
     onRun,
-    onFormat
+    onFormat,
+    onAnalyze
 }: SqlToolbarProps) {
     const statusMessage = aiGenerating ? 'Generating...' : '';
 
@@ -119,6 +121,16 @@ export function SqlToolbar({
                     title="Format SQL"
                     icon={<AlignLeft className="w-4 h-4" />}
                 />
+
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={onAnalyze}
+                    title="Explain Query Plan"
+                    icon={<Activity className="w-4 h-4" />}
+                >
+                    Explain
+                </Button>
 
                 <Button
                     size="sm"

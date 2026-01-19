@@ -13,6 +13,7 @@ import { SqlSidebar, TableInfo } from '@/components/sql-console/SqlSidebar';
 import { SqlToolbar } from '@/components/sql-console/SqlToolbar';
 import { QueryEditor } from '@/components/sql-console/QueryEditor';
 import { ResultsTable } from '@/components/sql-console/ResultsTable';
+import { QueryPlanViewer } from '@/components/sql-console/QueryPlanViewer';
 
 interface Connection {
     id: string;
@@ -23,7 +24,7 @@ interface Connection {
     database?: string;
 }
 
-type ViewMode = 'query' | 'create_table' | 'import_datasource';
+type ViewMode = 'query' | 'create_table' | 'import_datasource' | 'analyze';
 
 export default function ConnectionSqlPage() {
     const params = useParams();
@@ -49,6 +50,7 @@ export default function ConnectionSqlPage() {
     } | null>(null);
     const [executing, setExecuting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [executionPlan, setExecutionPlan] = useState<any[]>([]);
 
     const [showAiPrompt, setShowAiPrompt] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
@@ -272,6 +274,7 @@ export default function ConnectionSqlPage() {
         setExecuting(true);
         setError(null);
         setResults(null);
+        setActiveView('query');
 
         try {
             const res = await fetch('/api/query', {
@@ -293,6 +296,55 @@ export default function ConnectionSqlPage() {
             }
         } catch (e: any) {
             setError(e.message || "An error occurred");
+        } finally {
+            setExecuting(false);
+        }
+    };
+
+    const handleAnalyze = async () => {
+        if (!connection || !selectedDatabase) return;
+
+        setExecuting(true);
+        setError(null);
+        setExecutionPlan([]);
+        setActiveView('analyze');
+
+        try {
+            // ClickHouse EXPLAIN syntax: EXPLAIN PLAN json=1 <query>
+            const explainQuery = `EXPLAIN PLAN json=1 ${query}`;
+
+            const res = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: explainQuery,
+                    database: selectedDatabase,
+                    connection: connection
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                setError(data.error);
+            } else if (data.rows && data.rows.length > 0) {
+                // Result is usually a single string field containing JSON
+                const jsonStr = data.rows[0][0];
+                try {
+                    let plan = JSON.parse(jsonStr);
+                    // ClickHouse EXPLAIN json=1 returns an array of { Plan: ... } sometimes
+                    if (Array.isArray(plan) && plan.length > 0 && plan[0].Plan) {
+                        plan = plan.map((p: any) => p.Plan);
+                    }
+                    setExecutionPlan(plan);
+                } catch (parseErr) {
+                    setError("Failed to parse execution plan JSON. Ensure your ClickHouse version supports 'json=1'. Output: " + jsonStr);
+                }
+            } else {
+                setError("No execution plan returned.");
+            }
+        } catch (e: any) {
+            setError(e.message || "An error occurred during analysis");
         } finally {
             setExecuting(false);
         }
@@ -359,6 +411,7 @@ export default function ConnectionSqlPage() {
                             executing={executing}
                             onRun={executeQuery}
                             onFormat={handleFormat}
+                            onAnalyze={handleAnalyze}
                         />
 
                         {/* Split Panes: Editor & Results */}
@@ -369,11 +422,18 @@ export default function ConnectionSqlPage() {
                                 onRun={executeQuery}
                             />
 
-                            <ResultsTable
-                                results={results}
-                                error={error}
-                                executing={executing}
-                            />
+                            {activeView === 'analyze' ? (
+                                <QueryPlanViewer
+                                    plan={executionPlan}
+                                    onClose={() => setActiveView('query')}
+                                />
+                            ) : (
+                                <ResultsTable
+                                    results={results}
+                                    error={error}
+                                    executing={executing}
+                                />
+                            )}
                         </div>
                     </div>
                 )}
