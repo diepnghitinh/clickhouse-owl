@@ -24,7 +24,11 @@ export function ResultsTable({ results, error, executing }: ResultsTableProps) {
                         {results.statistics && (
                             <>
                                 <span className="w-px h-3 bg-border" />
-                                <span>{results.statistics.elapsed.toFixed(3)}s</span>
+                                <span>
+                                    {results.statistics.elapsed < 1
+                                        ? `${Math.round(results.statistics.elapsed * 1000)}ms`
+                                        : `${results.statistics.elapsed.toFixed(3)}s`}
+                                </span>
                                 <span className="w-px h-3 bg-border" />
                                 <span>{results.statistics.rows_read} rows read</span>
                             </>
