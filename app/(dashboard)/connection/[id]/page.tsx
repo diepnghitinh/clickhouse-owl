@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Database, Server, Table2, Plus, ArrowRight, Settings } from 'lucide-react';
+import { Database, Server, Table2, Plus, ArrowRight, Settings, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { CreateDatabaseModal } from '@/components/CreateDatabaseModal';
 import { AddConnectionModal, ConnectionConfig } from '@/components/AddConnectionModal';
 
@@ -28,6 +29,37 @@ export default function ConnectionDetailPage() {
     const [connection, setConnection] = useState<ConnectionConfig | null>(null);
     const [isCreateDbOpen, setIsCreateDbOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [databaseToDelete, setDatabaseToDelete] = useState<string | null>(null);
+
+    const handleDeleteDatabase = async () => {
+        if (!databaseToDelete) return;
+
+        try {
+            const headers: HeadersInit = { 'Content-Type': 'application/json' };
+            if (connection) {
+                headers['x-clickhouse-config'] = btoa(JSON.stringify(connection));
+            }
+
+            const res = await fetch('/api/databases', {
+                method: 'DELETE',
+                headers,
+                body: JSON.stringify({ name: databaseToDelete })
+            });
+
+            if (res.ok) {
+                fetchDatabases();
+                setDeleteModalOpen(false);
+                setDatabaseToDelete(null);
+            } else {
+                const data = await res.json();
+                alert('Failed to delete database: ' + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to delete database');
+        }
+    };
 
     const handleEditConnection = async (updatedConn: ConnectionConfig) => {
         // 1. Update localStorage
@@ -191,6 +223,17 @@ export default function ConnectionDetailPage() {
                                             <Button variant="ghost" size="sm" iconRight={<ArrowRight className="w-4 h-4" />}>
                                                 Query
                                             </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-destructive hover:bg-destructive/10"
+                                                onClick={() => {
+                                                    setDatabaseToDelete(db);
+                                                    setDeleteModalOpen(true);
+                                                }}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
                                         </div>
                                     </div>
                                 ))}
@@ -207,6 +250,18 @@ export default function ConnectionDetailPage() {
                         fetchDatabases();
                     }}
                 />
+
+                <Modal
+                    isOpen={deleteModalOpen}
+                    onClose={() => setDeleteModalOpen(false)}
+                    title="Delete Database"
+                    description={`Are you sure you want to delete the database "${databaseToDelete}"? This action cannot be undone.`}
+                >
+                    <div className="flex justify-end gap-3 mt-6">
+                        <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
+                        <Button variant="danger" onClick={handleDeleteDatabase}>Delete Database</Button>
+                    </div>
+                </Modal>
 
                 {connection && (
                     <AddConnectionModal
