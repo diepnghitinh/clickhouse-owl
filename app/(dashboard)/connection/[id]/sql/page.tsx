@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Play, Database, Server, Loader2, Save, Table2, Plus, Search, FilePlus, Import, Bot, Sparkles, X } from 'lucide-react';
+import { Play, Database, Server, Loader2, Save, Table2, Plus, Search, FilePlus, Import, Bot, Sparkles, X, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { CreateTableForm } from '@/components/CreateTableForm'; // Import the new form
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
@@ -57,6 +57,7 @@ export default function ConnectionSqlPage() {
     const [aiPrompt, setAiPrompt] = useState('');
     const [aiGenerating, setAiGenerating] = useState(false);
     const [aiModel, setAiModel] = useState<string>(''); // '' = auto/default
+    const [cachingContext, setCachingContext] = useState(false);
 
     // Modals (only for Import now, if we keep CreateTableForm inline)
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -121,11 +122,35 @@ export default function ConnectionSqlPage() {
         fetchTables();
     }, [connection, selectedDatabase]);
 
+    const [statusMessage, setStatusMessage] = useState('');
+
     const handleAskAI = async () => {
         if (!aiPrompt.trim()) return;
 
         setAiGenerating(true);
+        setStatusMessage('Loading schema & data context...');
+
         try {
+            // 1. Auto-cache context first
+            try {
+                if (connection && selectedDatabase && tables.length > 0) {
+                    const tableNames = tables.map(t => t.name);
+                    await fetch('/api/ai/cache', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            connection,
+                            database: selectedDatabase,
+                            tables: tableNames
+                        })
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to auto-cache (proceeding anyway):", err);
+            }
+
+            setStatusMessage('Generating query...');
+
             // Get keys from localStorage
             const openaiKey = localStorage.getItem('openai_api_key');
             const geminiKey = localStorage.getItem('gemini_api_key');
@@ -157,13 +182,11 @@ export default function ConnectionSqlPage() {
             if (!apiKey) {
                 alert('Please configure an API Key in Settings first. If selecting a specific model, ensure the corresponding provider key is set.');
                 setAiGenerating(false);
+                setStatusMessage('');
                 return;
             }
 
-            // Construct Schema Context (simplified: list of tables + columns for the active table if any?)
-            // For now, let's just send the list of table names and engines.
-            // A better approach would be to fetch 'SHOW CREATE TABLE' for relevant tables, but that's heavy.
-            // Let's send the table list.
+            // Construct Schema Context
             const tableList = tables.map(t => `${t.name} (${t.engine})`).join(', ');
             const schemaContext = `Database: ${selectedDatabase}\nTables: ${tableList}`;
 
@@ -175,7 +198,9 @@ export default function ConnectionSqlPage() {
                     apiKey,
                     prompt: aiPrompt,
                     schemaContext,
-                    model: aiModel || undefined
+                    model: aiModel || undefined,
+                    connectionId: connection?.id,
+                    database: selectedDatabase
                 })
             });
 
@@ -194,6 +219,34 @@ export default function ConnectionSqlPage() {
             alert(e.message);
         } finally {
             setAiGenerating(false);
+            setStatusMessage('');
+        }
+    };
+
+    const handleRefreshContext = async () => {
+        if (!connection || !selectedDatabase) return;
+        setCachingContext(true);
+        try {
+            const tableNames = tables.map(t => t.name);
+            const res = await fetch('/api/ai/cache', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    connection,
+                    database: selectedDatabase,
+                    tables: tableNames
+                })
+            });
+
+            if (!res.ok) {
+                console.error('Failed to cache context');
+            } else {
+                // optionally show a success toast
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setCachingContext(false);
         }
     };
 
@@ -419,8 +472,17 @@ export default function ConnectionSqlPage() {
                                         onClick={handleAskAI}
                                         disabled={aiGenerating || !aiPrompt.trim()}
                                     >
-                                        Generate
+                                        {aiGenerating ? (statusMessage || 'Generating...') : 'Generate'}
                                     </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        icon={cachingContext ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                        onClick={handleRefreshContext}
+                                        disabled={cachingContext || tables.length === 0}
+                                        title="Refresh AI Context (Schema & Data)"
+                                        className="border-none bg-transparent hover:bg-secondary/50"
+                                    />
                                     <button onClick={() => setShowAiPrompt(false)} className="p-1 hover:bg-secondary rounded-md">
                                         <X className="w-4 h-4 text-muted-foreground" />
                                     </button>
