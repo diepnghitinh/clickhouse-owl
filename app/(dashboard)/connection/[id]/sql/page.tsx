@@ -6,6 +6,7 @@ import { CreateTableForm } from '@/components/CreateTableForm';
 import { format } from 'sql-formatter';
 import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModal';
 import { TableInspectorModal } from '@/components/TableInspectorModal';
+import { DuplicateTableModal } from '@/components/DuplicateTableModal';
 import { getModelProvider } from '@/lib/ai-config';
 
 // New Components
@@ -61,6 +62,7 @@ export default function ConnectionSqlPage() {
     // Modals
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [inspectedTable, setInspectedTable] = useState<string | null>(null);
+    const [duplicatingTable, setDuplicatingTable] = useState<string | null>(null);
 
     // Load connection details
     useEffect(() => {
@@ -350,6 +352,36 @@ export default function ConnectionSqlPage() {
         }
     };
 
+    const executeDuplicateTable = async (newName: string, engine: string) => {
+        if (!connection || !selectedDatabase || !duplicatingTable) return;
+
+        const ddl = `CREATE TABLE ${selectedDatabase}.${newName} ENGINE = ${engine} AS ${selectedDatabase}.${duplicatingTable}`;
+
+        try {
+            const res = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: ddl,
+                    database: selectedDatabase,
+                    connection: connection
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            // Refresh tables
+            fetchTables();
+
+        } catch (e: any) {
+            throw e;
+        }
+    };
+
     const handleTableClick = (tableName: string) => {
         setQuery(`SELECT * FROM ${tableName} LIMIT 100`);
         setActiveView('query');
@@ -379,6 +411,7 @@ export default function ConnectionSqlPage() {
                 onInspectTable={setInspectedTable}
                 onCreateTable={() => setActiveView('create_table')}
                 onImportTable={() => setIsImportModalOpen(true)}
+                onDuplicateTable={setDuplicatingTable}
             />
 
             {/* Main Content Area */}
@@ -457,6 +490,15 @@ export default function ConnectionSqlPage() {
                     tableName={inspectedTable}
                     database={selectedDatabase}
                     connection={connection}
+                />
+            )}
+
+            {duplicatingTable && (
+                <DuplicateTableModal
+                    isOpen={!!duplicatingTable}
+                    onClose={() => setDuplicatingTable(null)}
+                    tableName={duplicatingTable}
+                    onDuplicate={executeDuplicateTable}
                 />
             )}
         </div>
