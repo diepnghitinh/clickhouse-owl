@@ -87,6 +87,48 @@ export default function ConnectionsPage() {
         }
     };
 
+    const [testingId, setTestingId] = React.useState<string | null>(null);
+    const [testResults, setTestResults] = React.useState<Record<string, 'success' | 'error' | null>>({});
+
+    const handleTestConnection = async (conn: ConnectionConfig, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!conn.id) return;
+
+        const connId = conn.id;
+        setTestingId(connId);
+        setTestResults(prev => ({ ...prev, [connId]: null })); // Reset
+
+        try {
+            const res = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: 'SELECT 1',
+                    connection: conn
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                setTestResults(prev => ({ ...prev, [connId]: 'error' }));
+                alert(`Connection failed: ${data.error}`);
+            } else {
+                setTestResults(prev => ({ ...prev, [connId]: 'success' }));
+
+                // Clear success status after 3 seconds
+                setTimeout(() => {
+                    setTestResults(prev => ({ ...prev, [connId]: null }));
+                }, 3000);
+            }
+        } catch (err: any) {
+            setTestResults(prev => ({ ...prev, [connId]: 'error' }));
+            alert(`Connection failed: ${err.message}`);
+        } finally {
+            setTestingId(null);
+        }
+    };
+
     return (
         <div className="flex-1 h-full bg-background p-8 overflow-y-auto">
             <div className="max-w-5xl mx-auto">
@@ -118,9 +160,28 @@ export default function ConnectionsPage() {
                                     <Server className="w-6 h-6" />
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <CheckCircle2 className="w-5 h-5 text-brand" />
+                                    {/* Test / Status Indicator */}
+                                    <div className="flex items-center">
+                                        {conn.id && testingId === conn.id && (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand mr-2" />
+                                        )}
+                                        {conn.id && testResults[conn.id] === 'success' && (
+                                            <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 animate-in fade-in" />
+                                        )}
+                                        {conn.id && testResults[conn.id] === 'error' && (
+                                            <div className="w-5 h-5 rounded-full bg-red-100 text-red-500 flex items-center justify-center mr-2">!</div>
+                                        )}
+
+                                        {conn.id && !testingId && !testResults[conn.id] && (
+                                            <button
+                                                onClick={(e) => handleTestConnection(conn, e)}
+                                                className="mr-2 opacity-0 group-hover:opacity-100 text-xs bg-secondary hover:bg-secondary/80 px-2 py-1 rounded transition-all text-muted-foreground hover:text-foreground"
+                                            >
+                                                Test
+                                            </button>
+                                        )}
                                     </div>
+
                                     <div className="relative z-10" onClick={(e) => e.stopPropagation()}>
                                         <Dropdown
                                             items={[
