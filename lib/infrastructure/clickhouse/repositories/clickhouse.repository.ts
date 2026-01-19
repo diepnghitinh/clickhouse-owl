@@ -58,39 +58,60 @@ export class ClickHouseRepository {
             client = this.createClient(connectionConfig);
         }
 
-        try {
-            const resultSet = await client.query({
-                query,
-                format: 'JSONCompact',
-                clickhouse_settings: { database: database || undefined },
-            });
+        const MAX_RETRIES = 3;
+        let lastError: any;
 
-            const json = await resultSet.json<{
-                meta?: Array<{ name: string }>;
-                data?: any[][];
-                statistics?: {
-                    elapsed: number;
-                    rows_read: number;
-                    bytes_read: number;
+        for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+            try {
+                const resultSet = await client.query({
+                    query,
+                    format: 'JSONCompact',
+                    clickhouse_settings: { database: database || undefined },
+                });
+
+                const json = await resultSet.json<{
+                    meta?: Array<{ name: string }>;
+                    data?: any[][];
+                    statistics?: {
+                        elapsed: number;
+                        rows_read: number;
+                        bytes_read: number;
+                    }
+                }>();
+
+                return {
+                    columns: json.meta?.map(m => m.name) || [],
+                    rows: (json.data as any[][]) || [],
+                    statistics: json.statistics
+                };
+            } catch (e: any) {
+                lastError = e;
+                const isConnectionRefused = e.message.includes('ECONNREFUSED') || e.code === 'ECONNREFUSED';
+
+                if (isConnectionRefused && attempt <= MAX_RETRIES) {
+                    console.warn(`ClickHouse connection refused. Retrying attempt ${attempt}/${MAX_RETRIES}...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff-ish
+                    continue;
                 }
-            }>();
 
-            return {
-                columns: json.meta?.map(m => m.name) || [],
-                rows: (json.data as any[][]) || [],
-                statistics: json.statistics
-            };
-        } catch (e: any) {
-            console.error('ClickHouse Query Error:', e.message);
-            // Re-throw or return empty based on preference. 
-            // Existing logic returned empty on error in some cases, but throwing is better for API handling.
-            // However, to match existing behavior:
-            if (e.message.includes('Syntax error') || e.message.includes('Code: 62')) {
-                throw e; // Let syntax errors bubble up
+                // Break immediately for other errors or if retries exhausted
+                break;
             }
-            // For DDLs that don't return data, validation usually passes.
-            return { columns: [], rows: [] };
         }
+
+        // Processing the final error after retries (or immediate non-retry error)
+        console.error('ClickHouse Query Error:', lastError.message);
+
+        if (lastError.message.includes('Syntax error') || lastError.message.includes('Code: 62')) {
+            throw lastError;
+        }
+
+        // throw if it was a connection error that persisted
+        if (lastError.message.includes('ECONNREFUSED')) {
+            throw new Error(`Failed to connect to ClickHouse after ${MAX_RETRIES} retries: ${lastError.message}`);
+        }
+
+        return { columns: [], rows: [] };
     }
 
     // Static helper to match previous usage pattern if needed

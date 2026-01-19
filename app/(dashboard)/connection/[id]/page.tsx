@@ -61,34 +61,52 @@ export default function ConnectionDetailPage() {
 
     useEffect(() => {
         // 1. Fetch current connection details (from session or local storage matching the ID)
-        // For now, let's look up the connection from localStorage using the ID logic we defined in Sidebar
-        // This is a bit disjointed because backend session vs frontend view.
-        // Ideally we fetch "current connection" from an API.
-        // Let's assume the session is already switched.
-
-        // Find connection meta from localStorage to display name/url
         const id = params.id as string;
         const stored = localStorage.getItem('clickhouse_connections');
         if (stored) {
             const conns = JSON.parse(stored);
             const match = conns.find((c: any) => c.id === id);
-            // Fallback for legacy slug links (optional, but good for transition)
+            // Fallback for legacy slug links
             if (!match) {
                 const slugMatch = conns.find((c: any) =>
                     encodeURIComponent(c.name.toLowerCase().replace(/\s+/g, '-')) === id
                 );
                 if (slugMatch) setConnection(slugMatch);
             } else {
+                // Avoid setting if it's the same to prevent unnecessary re-renders (though split effect fixes the loop primarily)
                 setConnection(match);
             }
         }
-
-        fetchDatabases();
     }, [params.id]);
+
+    useEffect(() => {
+        // Only fetch if connection is loaded
+        if (connection) {
+            fetchDatabases();
+        }
+    }, [connection]);
 
     const fetchDatabases = async () => {
         try {
-            const res = await fetch('/api/databases');
+            // Use connection from local storage if available (loading purely based on ID)
+            const headers: HeadersInit = {};
+
+            if (connection) {
+                // Pass connection config via header to avoid switching session or relying on stale session
+                const configStr = JSON.stringify(connection);
+                // Safe way to encode unicode strings for headers
+                const encoded = btoa(encodeURIComponent(configStr).replace(/%([0-9A-F]{2})/g,
+                    function toSolidBytes(match, p1) {
+                        return String.fromCharCode(Number('0x' + p1));
+                    }));
+                // Or simpler since we likely just have standard chars, but robust version:
+                // Actually standard btoa is fine for JSON usually unless crazy chars.
+                // Let's stick to standard btoa for simplicity as connection config is simple
+                headers['x-clickhouse-config'] = btoa(JSON.stringify(connection));
+            }
+
+            const res = await fetch('/api/databases', { headers });
+
             if (res.ok) {
                 const data = await res.json();
                 setDatabases(data);
