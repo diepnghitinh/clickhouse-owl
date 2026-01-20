@@ -23,6 +23,7 @@ import { SqlToolbar } from '@/components/sql-console/SqlToolbar';
 import { QueryEditor } from '@/components/sql-console/QueryEditor';
 import { ResultsTable } from '@/components/sql-console/ResultsTable';
 import { QueryPlanViewer } from '@/components/sql-console/QueryPlanViewer';
+import { SqlTabs, QueryTab } from '@/components/sql-console/SqlTabs';
 
 interface Connection {
     id: string;
@@ -50,17 +51,19 @@ export default function ConnectionSqlPage() {
     // View State
     const [activeView, setActiveView] = useState<ViewMode>('query');
 
-    // Query state
-    const [query, setQuery] = useState('SELECT 1');
-    const [results, setResults] = useState<{
-        columns: string[],
-        rows: any[][],
-        statistics?: { elapsed: number; rows_read: number; bytes_read: number; }
-    } | null>(null);
-    const [executing, setExecuting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [executionPlan, setExecutionPlan] = useState<any[]>([]);
+    // Tabs State
+    const [tabs, setTabs] = useState<QueryTab[]>([
+        { id: '1', title: 'Query 1', query: 'SELECT 1', results: null, error: null, executing: false, executionPlan: [] }
+    ]);
+    const [activeTabId, setActiveTabId] = useState<string>('1');
 
+    const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+
+    const updateActiveTab = (updates: Partial<QueryTab>) => {
+        setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...updates } : t));
+    };
+
+    // AI State
     const [showAiPrompt, setShowAiPrompt] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
     const [aiGenerating, setAiGenerating] = useState(false);
@@ -131,6 +134,33 @@ export default function ConnectionSqlPage() {
         if (!connection || !selectedDatabase) return;
         fetchTables();
     }, [connection, selectedDatabase]);
+
+    // Tab Handlers
+    const handleAddTab = () => {
+        const newId = Date.now().toString();
+        const newTab: QueryTab = {
+            id: newId,
+            title: `Query ${tabs.length + 1}`,
+            query: '',
+            results: null,
+            error: null,
+            executing: false,
+            executionPlan: []
+        };
+        setTabs([...tabs, newTab]);
+        setActiveTabId(newId);
+    };
+
+    const handleCloseTab = (id: string) => {
+        if (tabs.length === 1) return;
+
+        const newTabs = tabs.filter(t => t.id !== id);
+        setTabs(newTabs);
+
+        if (id === activeTabId) {
+            setActiveTabId(newTabs[newTabs.length - 1].id);
+        }
+    };
 
     const handleAskAI = async () => {
         if (!aiPrompt.trim()) return;
@@ -222,7 +252,7 @@ export default function ConnectionSqlPage() {
 
             const data = await res.json();
             if (data.sql) {
-                setQuery(data.sql);
+                updateActiveTab({ query: data.sql });
                 setShowAiPrompt(false);
                 setAiPrompt('');
             }
@@ -286,7 +316,7 @@ export default function ConnectionSqlPage() {
     const executeQuery = async () => {
         if (!connection || !selectedDatabase) return;
 
-        let queryToExecute = query;
+        let queryToExecute = activeTab.query;
 
         // Check for selected text
         if (editorRef.current) {
@@ -297,9 +327,7 @@ export default function ConnectionSqlPage() {
             }
         }
 
-        setExecuting(true);
-        setError(null);
-        setResults(null);
+        updateActiveTab({ executing: true, error: null, results: null });
         setActiveView('query');
 
         try {
@@ -316,28 +344,35 @@ export default function ConnectionSqlPage() {
             const data = await res.json();
 
             if (data.error) {
-                setError(data.error);
+                updateActiveTab({ error: data.error });
             } else {
-                setResults(data);
+                updateActiveTab({ results: data });
             }
         } catch (e: any) {
-            setError(e.message || "An error occurred");
+            updateActiveTab({ error: e.message || "An error occurred" });
         } finally {
-            setExecuting(false);
+            updateActiveTab({ executing: false });
         }
     };
 
     const handleAnalyze = async () => {
         if (!connection || !selectedDatabase) return;
 
-        setExecuting(true);
-        setError(null);
-        setExecutionPlan([]);
+        updateActiveTab({ executing: true, error: null, executionPlan: [] });
         setActiveView('analyze');
 
         try {
+            let queryToAnalyze = activeTab.query;
+            if (editorRef.current) {
+                const model = editorRef.current.getModel();
+                const selection = editorRef.current.getSelection();
+                if (model && selection && !selection.isEmpty()) {
+                    queryToAnalyze = model.getValueInRange(selection);
+                }
+            }
+
             // ClickHouse EXPLAIN syntax: EXPLAIN PLAN json=1 <query>
-            const explainQuery = `EXPLAIN PLAN json=1 ${query}`;
+            const explainQuery = `EXPLAIN PLAN json=1 ${queryToAnalyze}`;
 
             const res = await fetch('/api/query', {
                 method: 'POST',
@@ -352,7 +387,7 @@ export default function ConnectionSqlPage() {
             const data = await res.json();
 
             if (data.error) {
-                setError(data.error);
+                updateActiveTab({ error: data.error });
             } else if (data.rows && data.rows.length > 0) {
                 // Result is usually a single string field containing JSON
                 const jsonStr = data.rows[0][0];
@@ -362,17 +397,17 @@ export default function ConnectionSqlPage() {
                     if (Array.isArray(plan) && plan.length > 0 && plan[0].Plan) {
                         plan = plan.map((p: any) => p.Plan);
                     }
-                    setExecutionPlan(plan);
+                    updateActiveTab({ executionPlan: plan });
                 } catch (parseErr) {
-                    setError("Failed to parse execution plan JSON. Ensure your ClickHouse version supports 'json=1'. Output: " + jsonStr);
+                    updateActiveTab({ error: "Failed to parse execution plan JSON. Ensure your ClickHouse version supports 'json=1'. Output: " + jsonStr });
                 }
             } else {
-                setError("No execution plan returned.");
+                updateActiveTab({ error: "No execution plan returned." });
             }
         } catch (e: any) {
-            setError(e.message || "An error occurred during analysis");
+            updateActiveTab({ error: e.message || "An error occurred during analysis" });
         } finally {
-            setExecuting(false);
+            updateActiveTab({ executing: false });
         }
     };
 
@@ -507,17 +542,17 @@ export default function ConnectionSqlPage() {
     };
 
     const handleTableClick = (tableName: string) => {
-        setQuery(`SELECT * FROM ${tableName} LIMIT 100`);
+        updateActiveTab({ query: `SELECT * FROM ${tableName} LIMIT 100` });
         setActiveView('query');
     };
 
     const handleFormat = () => {
         try {
-            const formatted = format(query, {
+            const formatted = format(activeTab.query, {
                 language: 'clickhouse',
                 keywordCase: 'upper',
             });
-            setQuery(formatted);
+            updateActiveTab({ query: formatted });
         } catch (e) {
             console.error("Format error", e);
         }
@@ -554,6 +589,15 @@ export default function ConnectionSqlPage() {
                     />
                 ) : (
                     <div className="flex-1 flex flex-col min-h-0">
+                        {/* Tabs Bar */}
+                        <SqlTabs
+                            tabs={tabs}
+                            activeTabId={activeTabId}
+                            onTabChange={setActiveTabId}
+                            onCloseTab={handleCloseTab}
+                            onAddTab={handleAddTab}
+                        />
+
                         <SqlToolbar
                             connection={connection}
                             selectedDatabase={selectedDatabase}
@@ -568,7 +612,7 @@ export default function ConnectionSqlPage() {
                             cachingContext={cachingContext}
                             onRefreshContext={handleRefreshContext}
                             hasContext={tables.length > 0}
-                            executing={executing}
+                            executing={activeTab.executing}
                             onRun={executeQuery}
                             onFormat={handleFormat}
                             onAnalyze={handleAnalyze}
@@ -577,22 +621,23 @@ export default function ConnectionSqlPage() {
                         {/* Split Panes: Editor & Results */}
                         <div className="flex-1 flex flex-col min-h-0">
                             <QueryEditor
-                                query={query}
-                                onChange={setQuery}
+                                key={activeTab.id} // Important: remount editor when switching tabs to reset undo/redo stack if needed, or better, to just reset content correctly
+                                query={activeTab.query}
+                                onChange={(val) => updateActiveTab({ query: val })}
                                 onRun={executeQuery}
                                 onEditorMount={(editor) => { editorRef.current = editor; }}
                             />
 
                             {activeView === 'analyze' ? (
                                 <QueryPlanViewer
-                                    plan={executionPlan}
+                                    plan={activeTab.executionPlan || []}
                                     onClose={() => setActiveView('query')}
                                 />
                             ) : (
                                 <ResultsTable
-                                    results={results}
-                                    error={error}
-                                    executing={executing}
+                                    results={activeTab.results}
+                                    error={activeTab.error}
+                                    executing={activeTab.executing}
                                 />
                             )}
                         </div>
