@@ -8,6 +8,7 @@ import { CreateFromDatasourceModal } from '@/components/CreateFromDatasourceModa
 import { TableInspectorModal } from '@/components/TableInspectorModal';
 import { RenameTableModal } from '@/components/RenameTableModal';
 import { DeleteTableModal } from '@/components/DeleteTableModal';
+import { TruncateTableModal } from '@/components/TruncateTableModal';
 import { DuplicateTableModal } from '@/components/DuplicateTableModal';
 
 // ... (existing imports)
@@ -71,6 +72,7 @@ export default function ConnectionSqlPage() {
     const [inspectedTable, setInspectedTable] = useState<string | null>(null);
     const [duplicatingTable, setDuplicatingTable] = useState<string | null>(null);
     const [renamingTable, setRenamingTable] = useState<string | null>(null);
+    const [truncatingTable, setTruncatingTable] = useState<string | null>(null);
     const [deletingTable, setDeletingTable] = useState<string | null>(null);
 
     // Load connection details
@@ -465,6 +467,32 @@ export default function ConnectionSqlPage() {
         }
     };
 
+    const handleTruncateTable = async () => {
+        if (!connection || !selectedDatabase || !truncatingTable) return;
+
+        try {
+            const query = `TRUNCATE TABLE ${selectedDatabase}.${truncatingTable}`;
+            const res = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    database: selectedDatabase,
+                    connection: connection
+                })
+            });
+
+            const data = await res.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            setTruncatingTable(null);
+        } catch (e: any) {
+            throw e;
+        }
+    };
+
     const handleTableClick = (tableName: string) => {
         setQuery(`SELECT * FROM ${tableName} LIMIT 100`);
         setActiveView('query');
@@ -496,6 +524,7 @@ export default function ConnectionSqlPage() {
                 onImportTable={() => setIsImportModalOpen(true)}
                 onDuplicateTable={setDuplicatingTable}
                 onRenameTable={setRenamingTable}
+                onTruncateTable={setTruncatingTable}
                 onDeleteTable={setDeletingTable}
             />
 
@@ -602,6 +631,15 @@ export default function ConnectionSqlPage() {
                     onClose={() => setDeletingTable(null)}
                     tableName={deletingTable}
                     onDelete={handleDeleteTable}
+                />
+            )}
+
+            {truncatingTable && (
+                <TruncateTableModal
+                    isOpen={!!truncatingTable}
+                    onClose={() => setTruncatingTable(null)}
+                    tableName={truncatingTable}
+                    onTruncate={handleTruncateTable}
                 />
             )}
         </div>

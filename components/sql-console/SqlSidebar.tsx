@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Search, Plus, FilePlus, Import, Loader2, Table2, Bot, Copy, MoreVertical, Info, Pencil, Trash2 } from 'lucide-react';
+import { Database, Search, Plus, FilePlus, Import, Loader2, Table2, Bot, Copy, MoreVertical, Info, Pencil, Trash2, Eraser } from 'lucide-react';
 import { Dropdown } from '@/components/ui/Dropdown';
 
 export interface TableInfo {
@@ -19,6 +19,7 @@ interface SqlSidebarProps {
     onImportTable: () => void;
     onDuplicateTable: (tableName: string) => void;
     onRenameTable: (tableName: string) => void;
+    onTruncateTable: (tableName: string) => void;
     onDeleteTable: (tableName: string) => void;
 }
 
@@ -34,6 +35,7 @@ export function SqlSidebar({
     onImportTable,
     onDuplicateTable,
     onRenameTable,
+    onTruncateTable,
     onDeleteTable
 }: SqlSidebarProps) {
     const [tableSearch, setTableSearch] = useState('');
@@ -70,7 +72,7 @@ export function SqlSidebar({
                     }
                     items={[
                         {
-                            label: 'Empty Table',
+                            label: 'Standard Table',
                             icon: <FilePlus className="w-4 h-4" />,
                             onClick: onCreateTable
                         },
@@ -142,6 +144,12 @@ export function SqlSidebar({
                                                 onClick: () => onDuplicateTable(table.name)
                                             },
                                             {
+                                                label: 'Empty Table',
+                                                icon: <Eraser className="w-4 h-4 text-orange-600 dark:text-orange-500" />,
+                                                className: 'text-orange-600 dark:text-orange-500 focus:text-orange-600',
+                                                onClick: () => onTruncateTable(table.name)
+                                            },
+                                            {
                                                 label: 'Rename Table',
                                                 icon: <Pencil className="w-4 h-4" />,
                                                 onClick: () => onRenameTable(table.name)
@@ -168,3 +176,4 @@ export function SqlSidebar({
         </div>
     );
 }
+

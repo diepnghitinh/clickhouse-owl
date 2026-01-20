@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "description": "Modern ClickHouse admin management interface",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 5300",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 5300",
     "lint": "next lint"
   },
   "dependencies": {
