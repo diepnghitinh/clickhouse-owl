@@ -7,9 +7,10 @@ interface QueryEditorProps {
     onChange: (query: string) => void;
     onRun: () => void;
     className?: string;
+    onEditorMount?: (editor: any) => void;
 }
 
-export function QueryEditor({ query, onChange, onRun, className }: QueryEditorProps) {
+export function QueryEditor({ query, onChange, onRun, className, onEditorMount }: QueryEditorProps) {
     const [height, setHeight] = useState(300); // Default height in px
     const containerRef = useRef<HTMLDivElement>(null);
     const isDragging = useRef(false);
@@ -45,6 +46,9 @@ export function QueryEditor({ query, onChange, onRun, className }: QueryEditorPr
 
     // Monaco Configuration
     const handleEditorDidMount = (editor: any, monaco: any) => {
+        if (onEditorMount) {
+            onEditorMount(editor);
+        }
         // Add execute shortcut (Cmd+Enter)
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
             onRun();

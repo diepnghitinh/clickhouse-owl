@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { CreateTableForm } from '@/components/CreateTableForm';
 import { format } from 'sql-formatter';
@@ -281,8 +281,21 @@ export default function ConnectionSqlPage() {
         }
     };
 
+    const editorRef = useRef<any>(null);
+
     const executeQuery = async () => {
         if (!connection || !selectedDatabase) return;
+
+        let queryToExecute = query;
+
+        // Check for selected text
+        if (editorRef.current) {
+            const model = editorRef.current.getModel();
+            const selection = editorRef.current.getSelection();
+            if (model && selection && !selection.isEmpty()) {
+                queryToExecute = model.getValueInRange(selection);
+            }
+        }
 
         setExecuting(true);
         setError(null);
@@ -294,7 +307,7 @@ export default function ConnectionSqlPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    query,
+                    query: queryToExecute,
                     database: selectedDatabase,
                     connection: connection
                 })
@@ -567,6 +580,7 @@ export default function ConnectionSqlPage() {
                                 query={query}
                                 onChange={setQuery}
                                 onRun={executeQuery}
+                                onEditorMount={(editor) => { editorRef.current = editor; }}
                             />
 
                             {activeView === 'analyze' ? (
