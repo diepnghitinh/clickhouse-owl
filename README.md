@@ -1,6 +1,8 @@
 # ClickHouse Owl 🦉
 
-Modern admin management interface for ClickHouse databases.
+![ClickHouse Owl Screenshot](img/app-screenshot.png)
+
+Modern, AI-powered admin management interface for ClickHouse databases.
 
 ## Overview
 
@@ -8,27 +10,35 @@ ClickHouse Owl is a beautiful, modern web-based admin interface for managing Cli
 
 ## Features
 
-- **📊 Dashboard** - Overview of databases, tables, and system status
-- **💾 Database Management** - Create and manage multiple databases
-- **📋 Table Management** - Create, view, and drop tables with ease
-- **⚡ SQL Editor** - Execute SQL queries with syntax highlighting
-- **📈 Real-time Results** - View query results in a responsive data grid
-- **🔍 Activity Monitoring** - Track queries, performance metrics, and system health
+- **📊 Dashboard** - Real-time overview of databases, tables, and system status
+- **⚡ Smart SQL Editor**
+    - **Tabbed Interface** - Work on multiple queries simultaneously
+    - **AI-Powered** - Generate queries using natural language (supports OpenAI, Gemini, Claude)
+    - **Run Selected** - Execute only highlighted text
+    - **Execution Plan** - Visualize query performance with EXPLAIN PLAN
+- **💾 Database Management** - Create, manage, and inspect schemas
+- **📋 Table Management**
+    - **Visual Creator** - Design tables with a UI builder
+    - **Import/Link** - Create tables from external datasources (PostgreSQL, MySQL, S3)
+    - **Data Preview** - Inspect table data with sorting and filtering
+    - **Truncate/Drop** - Safe management with confirmation dialogs
+- **🔌 Multi-Connection** - Manage multiple ClickHouse server connections
 - **🎨 Modern UI** - Clean, responsive interface with dark mode support
 
 ## Tech Stack
 
-- **Frontend**: React 19 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS v4
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Editor**: Monaco Editor (VS Code core)
 - **Icons**: Lucide React
-- **HTTP Client**: Axios
+- **AI Integration**: Vercel AI SDK
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ (or compatible)
+- Node.js 18+
 - A running ClickHouse server
 
 ### Installation
@@ -45,84 +55,36 @@ npm install
 npm run dev
 ```
 
-The application will be available at `http://localhost:5300`
+The application will be available at `http://localhost:3000`
 
 ### Build for Production
 
 ```bash
 npm run build
-npm run preview
+npm start
 ```
 
 ## Configuration
 
 ### API Endpoint
 
-The application expects a backend API at `/api` with the following endpoints:
+The application uses Next.js API Routes for backend proxying to ClickHouse.
+- `/api/query` - Execute SQL queries
+- `/api/ai/generate` - AI query generation
 
-- `POST /api/login` - Authentication
-- `POST /api/query` - Execute SQL queries
-- `GET /api/databases` - List databases
-- `GET /api/tables?db={database}` - List tables in a database
+### AI Configuration
 
-### Default Credentials
-
-Default login credentials (configurable in your backend):
-- Username: `default`
-- Password: `clickhouse`
+To enable AI features, set the following keys in your local storage or environment variables (feature specific setup guide coming soon):
+- `openai_api_key`
+- `gemini_api_key`
+- `claude_api_key`
 
 ## Usage
 
-1. **Login** - Enter your ClickHouse credentials
-2. **Dashboard** - View system overview and quick actions
-3. **SQL Editor** - Execute custom SQL queries
-4. **Tables View** - Browse and manage tables
-5. **Create Database/Table** - Use the modal dialogs for creation
-
-## ClickHouse Data Types Support
-
-The application supports all standard ClickHouse data types:
-
-- **Integer**: Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64
-- **Float**: Float32, Float64
-- **Decimal**: Decimal, Decimal32, Decimal64, Decimal128, Decimal256
-- **String**: String, FixedString
-- **Date/Time**: Date, Date32, DateTime, DateTime64
-- **Special**: UUID, IPv4, IPv6, Enum8, Enum16, Array, Tuple, Nullable, LowCardinality, Map, JSON
-
-## Development
-
-### Project Structure
-
-```
-src/
-├── api/
-│   └── client.ts           # API client and data types
-├── components/
-│   ├── ui/                 # Reusable UI components
-│   ├── Dashboard.tsx       # Dashboard view
-│   ├── Layout.tsx          # Main layout wrapper
-│   ├── Login.tsx           # Login page
-│   ├── CreateDatabaseModal.tsx
-│   ├── CreateTableModal.tsx
-│   ├── CreateRecordModal.tsx
-│   └── DropTableModal.tsx
-├── lib/
-│   └── utils.ts            # Utility functions
-├── App.tsx                 # Main application component
-└── main.tsx                # Entry point
-```
-
-### Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. **Connect** - Add a connection to your ClickHouse server
+2. **Explore** - Browse databases and tables in the sidebar
+3. **Query** - Use the SQL Editor with tabs and AI assistance
+4. **Manage** - Right-click tables or use the toolbar to create, duplicate, rename, or drop tables
 
 ## License
 
