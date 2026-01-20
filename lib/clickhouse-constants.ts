@@ -21,3 +21,12 @@ export const COMMON_ENGINES = [
     'URL',
     'File',
 ];
+
+export const DATA_QUERY_COMMANDS = [
+    'SELECT',
+    'SHOW',
+    'WITH',
+    'EXPLAIN',
+    'DESCRIBE',
+    'Num'
+];

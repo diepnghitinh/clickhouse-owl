@@ -1,4 +1,5 @@
 import { createClient, ClickHouseClient } from '@clickhouse/client';
+import { DATA_QUERY_COMMANDS } from '@/lib/clickhouse-constants';
 
 export interface ConnectionConfig {
     url: string;
@@ -61,14 +62,10 @@ export class ClickHouseRepository {
         const MAX_RETRIES = 3;
         let lastError: any;
 
-        // Simple heuristic to decide if we expect rows back
         const trimmedQuery = query.trim().toUpperCase();
-        const isDataQuery = trimmedQuery.startsWith('SELECT') ||
-            trimmedQuery.startsWith('SHOW') ||
-            trimmedQuery.startsWith('WITH') ||
-            trimmedQuery.startsWith('EXPLAIN') ||
-            trimmedQuery.startsWith('DESCRIBE') ||
-            trimmedQuery.startsWith('Num');
+        const isDataQuery = DATA_QUERY_COMMANDS.some(cmd =>
+            trimmedQuery.startsWith(cmd.toUpperCase())
+        );
 
         for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
             try {
