@@ -37,6 +37,7 @@ tmp/
 # Next.js
 .next/
 out/
+dist/
 node_modules/
 .env.local
 .env.production.local
