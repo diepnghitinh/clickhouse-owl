@@ -26,8 +26,11 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
         username: '',
         password: '',
         database: '',
-        ssl: false
+        ssl: false,
+        authSource: 'admin'
     });
+
+    const defaultPort = formData.engine === 'MongoDB' ? '27017' : formData.engine === 'MySQL' ? '3306' : '5432';
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -50,8 +53,9 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
             username: '',
             password: '',
             database: '',
-            ssl: false
-        });
+            ssl: false,
+            authSource: 'admin'
+        } as typeof formData);
     };
 
     if (!isOpen) return null;
@@ -66,9 +70,9 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                     Add Connection
                 </>
             }
-            className="w-full max-w-md"
+            className="w-full max-w-xl p-6 sm:p-8"
         >
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 {error && (
                     <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-md flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 shrink-0" />
@@ -76,17 +80,22 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                     </div>
                 )}
 
-                <div className="space-y-4">
+                <div className="space-y-5">
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Engine</label>
                         <select
                             name="engine"
                             value={formData.engine}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const engine = e.target.value;
+                                const port = engine === 'MongoDB' ? '27017' : engine === 'MySQL' ? '3306' : '5432';
+                                setFormData(prev => ({ ...prev, engine, port }));
+                            }}
                             className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
                             <option value="PostgreSQL">PostgreSQL</option>
                             <option value="MySQL">MySQL</option>
+                            <option value="MongoDB">MongoDB</option>
                         </select>
                     </div>
 
@@ -117,7 +126,7 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                             <label className="text-sm font-medium">Port</label>
                             <Input
                                 name="port"
-                                placeholder="5432"
+                                placeholder={defaultPort}
                                 value={formData.port}
                                 onChange={handleChange}
                                 required
@@ -130,10 +139,10 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                             <label className="text-sm font-medium">Username</label>
                             <Input
                                 name="username"
-                                placeholder="postgres"
+                                placeholder={formData.engine === 'MongoDB' ? 'optional' : 'postgres'}
                                 value={formData.username}
                                 onChange={handleChange}
-                                required
+                                required={formData.engine !== 'MongoDB'}
                             />
                         </div>
                         <div className="space-y-2">
@@ -144,7 +153,7 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                                 placeholder="••••••••"
                                 value={formData.password}
                                 onChange={handleChange}
-                                required
+                                required={formData.engine !== 'MongoDB'}
                             />
                         </div>
                     </div>
@@ -160,7 +169,20 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                         />
                     </div>
 
-                    <div className="flex items-center space-x-2 pt-2">
+                    {formData.engine === 'MongoDB' && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Authentication database</label>
+                            <Input
+                                name="authSource"
+                                placeholder="admin"
+                                value={formData.authSource ?? 'admin'}
+                                onChange={handleChange}
+                            />
+                            <p className="text-[10px] text-muted-foreground">Auth source for the user (e.g. admin)</p>
+                        </div>
+                    )}
+
+                    <div className="flex items-center space-x-2 pt-1">
                         <input
                             type="checkbox"
                             id="ssl"
@@ -175,7 +197,7 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
                     </div>
                 </div>
 
-                <div className="flex justify-end pt-4 gap-3">
+                <div className="flex justify-end pt-2 gap-3 border-t border-border mt-2">
                     <Button type="button" variant="ghost" onClick={onClose}>
                         Cancel
                     </Button>

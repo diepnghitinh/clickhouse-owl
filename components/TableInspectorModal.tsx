@@ -116,13 +116,13 @@ export function TableInspectorModal({ isOpen, onClose, tableName, database, conn
                     </div>
                 </div>
             }
-            className="w-[800px] max-h-[85vh] h-[600px] flex flex-col"
+            className="w-[800px] max-w-[95vw] max-h-[85vh] h-[600px] flex flex-col p-6 sm:p-8"
         >
-            <div className="flex border-b border-border mb-4 shrink-0">
+            <div className="flex border-b border-border -mx-1 mb-5 shrink-0">
                 <button
                     onClick={() => setActiveTab('schema')}
                     className={cn(
-                        "px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2",
+                        "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 rounded-t",
                         activeTab === 'schema'
                             ? "border-brand text-brand"
                             : "border-transparent text-muted-foreground hover:text-foreground"
@@ -134,7 +134,7 @@ export function TableInspectorModal({ isOpen, onClose, tableName, database, conn
                 <button
                     onClick={() => setActiveTab('preview')}
                     className={cn(
-                        "px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2",
+                        "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 rounded-t",
                         activeTab === 'preview'
                             ? "border-brand text-brand"
                             : "border-transparent text-muted-foreground hover:text-foreground"
@@ -145,27 +145,27 @@ export function TableInspectorModal({ isOpen, onClose, tableName, database, conn
                 </button>
             </div>
 
-            <div className="flex-1 overflow-hidden min-h-0 relative">
+            <div className="flex-1 overflow-hidden min-h-0 relative -mx-1">
                 {activeTab === 'schema' && (
-                    <div className="h-full overflow-auto custom-scrollbar">
+                    <div className="h-full overflow-auto custom-scrollbar pr-1">
                         <table className="w-full text-sm text-left">
                             <thead className="text-xs text-muted-foreground uppercase bg-secondary/50 sticky top-0">
                                 <tr>
-                                    <th className="px-4 py-3 font-medium border-b border-border">Column</th>
-                                    <th className="px-4 py-3 font-medium border-b border-border">Type</th>
-                                    <th className="px-4 py-3 font-medium border-b border-border">Default</th>
-                                    <th className="px-4 py-3 font-medium border-b border-border">Comment</th>
+                                    <th className="px-5 py-3.5 font-medium border-b border-border">Column</th>
+                                    <th className="px-5 py-3.5 font-medium border-b border-border">Type</th>
+                                    <th className="px-5 py-3.5 font-medium border-b border-border">Default</th>
+                                    <th className="px-5 py-3.5 font-medium border-b border-border">Comment</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {schema.map((col, i) => (
                                     <tr key={i} className="hover:bg-secondary/20">
-                                        <td className="px-4 py-2 font-mono font-medium">{col.name}</td>
-                                        <td className="px-4 py-2 font-mono text-brand/80">{col.type}</td>
-                                        <td className="px-4 py-2 text-muted-foreground italic">
+                                        <td className="px-5 py-3 font-mono font-medium">{col.name}</td>
+                                        <td className="px-5 py-3 font-mono text-brand/80">{col.type}</td>
+                                        <td className="px-5 py-3 text-muted-foreground italic">
                                             {col.default_expression || '-'}
                                         </td>
-                                        <td className="px-4 py-2 text-muted-foreground">{col.comment || '-'}</td>
+                                        <td className="px-5 py-3 text-muted-foreground">{col.comment || '-'}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -174,14 +174,14 @@ export function TableInspectorModal({ isOpen, onClose, tableName, database, conn
                 )}
 
                 {activeTab === 'preview' && (
-                    <div className="h-full overflow-auto custom-scrollbar">
+                    <div className="h-full overflow-auto custom-scrollbar pr-1">
                         {previewData ? (
                             <div className="inline-block min-w-full align-top">
                                 <table className="min-w-full text-sm text-left">
                                     <thead className="text-xs text-muted-foreground uppercase bg-secondary/50 sticky top-0">
                                         <tr>
                                             {previewData.columns.map((col, i) => (
-                                                <th key={i} className="px-4 py-3 font-medium whitespace-nowrap border-b border-border bg-secondary/50">
+                                                <th key={i} className="px-5 py-3.5 font-medium whitespace-nowrap border-b border-border bg-secondary/50">
                                                     {col}
                                                 </th>
                                             ))}
@@ -191,7 +191,7 @@ export function TableInspectorModal({ isOpen, onClose, tableName, database, conn
                                         {previewData.rows.map((row, i) => (
                                             <tr key={i} className="hover:bg-secondary/20">
                                                 {row.map((cell, j) => (
-                                                    <td key={j} className="px-4 py-2 whitespace-nowrap max-w-[300px] truncate border-r border-border/50 last:border-r-0 font-mono text-xs">
+                                                    <td key={j} className="px-5 py-3 whitespace-nowrap max-w-[300px] truncate border-r border-border/50 last:border-r-0 font-mono text-xs">
                                                         {typeof cell === 'object' ? JSON.stringify(cell) : String(cell)}
                                                     </td>
                                                 ))}
@@ -215,7 +215,7 @@ export function TableInspectorModal({ isOpen, onClose, tableName, database, conn
                 )}
 
                 {error && (
-                    <div className="absolute inset-x-4 top-4 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
+                    <div className="absolute left-0 right-0 top-0 mx-1 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
                         {error}
                     </div>
                 )}

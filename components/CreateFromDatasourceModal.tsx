@@ -58,6 +58,7 @@ export function CreateFromDatasourceModal({ isOpen, onClose, onSuccess, targetDa
 
     const handleSelectDatasource = async (ds: DataSource) => {
         setSelectedDs(ds);
+        if (ds.engine === 'MongoDB') setMode('link');
         setFetchingTables(true);
         setError('');
         try {
@@ -84,20 +85,24 @@ export function CreateFromDatasourceModal({ isOpen, onClose, onSuccess, targetDa
     const handleSubmit = async () => {
         if (!selectedDs || !selectedTable) return;
 
+        const isMongo = selectedDs.engine === 'MongoDB';
+        if (isMongo && mode === 'import') {
+            setError('MongoDB supports link only (read-through).');
+            return;
+        }
+
         setLoading(true);
         setError('');
 
         try {
-            const res = await fetch('/api/tables/create-from-postgres', {
+            const endpoint = isMongo ? '/api/tables/create-from-mongodb' : '/api/tables/create-from-postgres';
+            const body = isMongo
+                ? { sourceTable: selectedTable.name, targetTable: selectedTable.name, targetDatabase, connection: selectedDs }
+                : { sourceTable: selectedTable.name, targetTable: selectedTable.name, targetDatabase, connection: selectedDs, mode };
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sourceTable: selectedTable.name,
-                    targetTable: selectedTable.name,
-                    targetDatabase: targetDatabase,
-                    connection: selectedDs,
-                    mode
-                }),
+                body: JSON.stringify(body),
             });
 
             if (!res.ok) {
@@ -205,7 +210,7 @@ export function CreateFromDatasourceModal({ isOpen, onClose, onSuccess, targetDa
 
                         {selectedTable && (
                             <div className="bg-secondary/20 p-4 rounded-lg border border-border space-y-3">
-                                <div className="flex items-center gap-4">
+                                <div className={cn("flex gap-4", selectedDs?.engine === 'MongoDB' && "flex-col")}>
                                     <button
                                         onClick={() => setMode('link')}
                                         className={cn(
@@ -217,22 +222,28 @@ export function CreateFromDatasourceModal({ isOpen, onClose, onSuccess, targetDa
                                             <Link className="w-4 h-4" />
                                             <span className="font-semibold text-sm">Link Table</span>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">Creates a live Proxy table (ENGINE = PostgreSQL). No data is copied.</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedDs?.engine === 'MongoDB'
+                                                ? 'Creates a read-through table (ENGINE = MongoDB). No data is copied.'
+                                                : 'Creates a live Proxy table (ENGINE = PostgreSQL). No data is copied.'}
+                                        </p>
                                     </button>
 
-                                    <button
-                                        onClick={() => setMode('import')}
-                                        className={cn(
-                                            "flex-1 p-3 rounded-lg border-2 text-left transition-all",
-                                            mode === 'import' ? "border-brand bg-brand/5" : "border-border hover:border-border/80"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Import className="w-4 h-4" />
-                                            <span className="font-semibold text-sm">Import Data</span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">Copies data into ClickHouse (ENGINE = MergeTree). Good for snapshots.</p>
-                                    </button>
+                                    {selectedDs?.engine !== 'MongoDB' && (
+                                        <button
+                                            onClick={() => setMode('import')}
+                                            className={cn(
+                                                "flex-1 p-3 rounded-lg border-2 text-left transition-all",
+                                                mode === 'import' ? "border-brand bg-brand/5" : "border-border hover:border-border/80"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Import className="w-4 h-4" />
+                                                <span className="font-semibold text-sm">Import Data</span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">Copies data into ClickHouse (ENGINE = MergeTree). Good for snapshots.</p>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}

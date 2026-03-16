@@ -28,7 +28,8 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
         username: '',
         password: '',
         database: '',
-        ssl: false
+        ssl: false,
+        authSource: 'admin'
     });
 
     useEffect(() => {
@@ -43,6 +44,7 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                 password: initialData.password || '',
                 database: initialData.database || '',
                 ssl: initialData.ssl || false,
+                authSource: initialData.authSource ?? 'admin',
             });
         }
     }, [isOpen, initialData]);
@@ -71,9 +73,9 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                     Edit Connection
                 </>
             }
-            className="w-full max-w-md"
+            className="w-full max-w-xl p-6 sm:p-8"
         >
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 {error && (
                     <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-md flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 shrink-0" />
@@ -81,17 +83,22 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                     </div>
                 )}
 
-                <div className="space-y-4">
+                <div className="space-y-5">
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Engine</label>
                         <select
                             name="engine"
                             value={formData.engine}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const engine = e.target.value;
+                                const port = engine === 'MongoDB' ? '27017' : engine === 'MySQL' ? '3306' : '5432';
+                                setFormData(prev => ({ ...prev, engine, port }));
+                            }}
                             className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
                             <option value="PostgreSQL">PostgreSQL</option>
                             <option value="MySQL">MySQL</option>
+                            <option value="MongoDB">MongoDB</option>
                         </select>
                     </div>
 
@@ -134,7 +141,7 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                                 name="username"
                                 value={formData.username}
                                 onChange={handleChange}
-                                required
+                                required={formData.engine !== 'MongoDB'}
                             />
                         </div>
                         <div className="space-y-2">
@@ -144,7 +151,7 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                                 name="password"
                                 value={formData.password}
                                 onChange={handleChange}
-                                required
+                                required={formData.engine !== 'MongoDB'}
                             />
                         </div>
                     </div>
@@ -159,7 +166,20 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                         />
                     </div>
 
-                    <div className="flex items-center space-x-2 pt-2">
+                    {formData.engine === 'MongoDB' && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Authentication database</label>
+                            <Input
+                                name="authSource"
+                                value={formData.authSource ?? 'admin'}
+                                onChange={handleChange}
+                                placeholder="admin"
+                            />
+                            <p className="text-[10px] text-muted-foreground">Auth source for the user (e.g. admin)</p>
+                        </div>
+                    )}
+
+                    <div className="flex items-center space-x-2 pt-1">
                         <input
                             type="checkbox"
                             id="edit-ssl"
@@ -174,7 +194,7 @@ export function EditDataSourceModal({ isOpen, onClose, onEdit, initialData }: Ed
                     </div>
                 </div>
 
-                <div className="flex justify-end pt-4 gap-3">
+                <div className="flex justify-end pt-2 gap-3 border-t border-border mt-2">
                     <Button type="button" variant="ghost" onClick={onClose}>
                         Cancel
                     </Button>

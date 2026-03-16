@@ -1,7 +1,30 @@
 import React from 'react';
-import { Settings2, Edit2, Trash2, MoreVertical, Database } from 'lucide-react';
+import { Edit2, Trash2, MoreVertical, Database, Server, Leaf } from 'lucide-react';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { cn } from '@/lib/utils';
+
+function DataSourceIcon({ engine, isActive }: { engine: string; isActive: boolean }) {
+    const base = "w-8 h-8 rounded flex items-center justify-center shrink-0";
+    if (engine === 'MongoDB') {
+        return (
+            <div className={cn(base, isActive ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-green-100 dark:bg-green-900/25 text-green-700 dark:text-green-400")}>
+                <Leaf className="w-4 h-4" />
+            </div>
+        );
+    }
+    if (engine === 'MySQL') {
+        return (
+            <div className={cn(base, isActive ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-amber-100 dark:bg-amber-900/25 text-amber-700 dark:text-amber-400")}>
+                <Server className="w-4 h-4" />
+            </div>
+        );
+    }
+    return (
+        <div className={cn(base, isActive ? "bg-brand/10 text-brand" : "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400")}>
+            <Database className="w-4 h-4" />
+        </div>
+    );
+}
 
 export interface DataSource {
     id: string;
@@ -14,6 +37,8 @@ export interface DataSource {
     password?: string;
     database?: string;
     ssl?: boolean;
+    /** MongoDB only: authentication database (e.g. admin) */
+    authSource?: string;
 }
 
 interface DataSourceListItemProps {
@@ -42,15 +67,10 @@ export function DataSourceListItem({
             )}
         >
             <div className="flex items-center gap-3">
-                <div className={cn(
-                    "w-8 h-8 rounded flex items-center justify-center shrink-0",
-                    isActive ? "bg-brand/10 text-brand" : "bg-blue-100 dark:bg-blue-900/20"
-                )}>
-                    {isActive ? <Database className="w-4 h-4" /> : <div className="text-lg">🐘</div>}
-                </div>
+                <DataSourceIcon engine={dataSource.engine} isActive={isActive} />
                 <div className="min-w-0">
                     <div className="font-medium text-sm truncate">{dataSource.name}</div>
-                    <div className="text-xs text-muted-foreground truncate opacity-70">PostgreSQL</div>
+                    <div className="text-xs text-muted-foreground truncate opacity-70">{dataSource.engine}</div>
                 </div>
             </div>
 

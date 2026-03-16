@@ -94,21 +94,27 @@ export default function DatasourceDetailPage() {
     const handleImport = async (table: Table, mode: 'import' | 'link' = 'import') => {
         if (!activeSource) return;
 
+        const isMongo = activeSource.engine === 'MongoDB';
+        if (isMongo && mode === 'import') {
+            alert('MongoDB datasource supports link only (read-through).');
+            return;
+        }
+
         setImportingTable(table.name);
         try {
-            const res = await fetch('/api/tables/create-from-postgres', {
+            const endpoint = isMongo ? '/api/tables/create-from-mongodb' : '/api/tables/create-from-postgres';
+            const body = isMongo
+                ? { sourceTable: table.name, targetTable: table.name, connection: activeSource }
+                : { sourceTable: table.name, targetTable: table.name, connection: activeSource, mode };
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sourceTable: table.name,
-                    targetTable: table.name, // Default to same name
-                    connection: activeSource,
-                    mode
-                }),
+                body: JSON.stringify(body),
             });
 
             if (res.ok) {
-                alert(`Table ${table.name} ${mode === 'link' ? 'linked' : 'imported'} successfully!`);
+                const msg = isMongo ? 'linked' : mode === 'link' ? 'linked' : 'imported';
+                alert(`Table ${table.name} ${msg} successfully!`);
             } else {
                 const err = await res.json();
                 alert(`Failed to import table: ${err.error}`);
