@@ -236,7 +236,7 @@ export default function DatabaseDetailPage() {
                                 <span>{selectedTables.size > 0 ? `${selectedTables.size} selected` : 'Name'}</span>
                             </div>
                             {filteredTables.map((table) => (
-                                <div key={table.name} className="p-4 flex items-center justify-between hover:bg-secondary/30 transition-colors group">
+                                <div key={table.name} className="p-4 flex items-center justify-between hover:bg-secondary/30 transition-colors group" title={databaseName}>
                                     <div className="flex items-center gap-3">
                                         <input
                                             type="checkbox"

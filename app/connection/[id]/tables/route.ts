@@ -16,7 +16,7 @@ const schema = z.object({
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await getSession();
     if (!session.isAuthenticated) {
@@ -57,7 +57,7 @@ export async function POST(
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const session = await getSession();
     if (!session.isAuthenticated) {

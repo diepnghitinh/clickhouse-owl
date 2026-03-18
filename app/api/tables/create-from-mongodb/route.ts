@@ -13,16 +13,40 @@ function quoteIdentifier(name: string): string {
     return `"${name.replace(/"/g, '""')}"`;
 }
 
-/** Infer column list from a sample MongoDB document. Returns at least _id String. */
 function inferColumnsFromSample(doc: Record<string, unknown> | null): string {
     const cols: string[] = ['_id String'];
     if (!doc || typeof doc !== 'object') return cols.join(', ');
     const seen = new Set<string>(['_id']);
-    for (const key of Object.keys(doc)) {
+
+    const inferType = (val: any): string => {
+        if (val === null || val === undefined) return 'String';
+        if (typeof val === 'number') {
+            return Number.isInteger(val) ? 'Int64' : 'Float64';
+        }
+        if (typeof val === 'boolean') return 'Bool';
+        if (val instanceof Date) return 'DateTime';
+        if (typeof val === 'object') {
+            if (val._bsontype === 'ObjectId') return 'String';
+            if (val._bsontype === 'Long') return 'Int64';
+            if (val._bsontype === 'Int32') return 'Int32';
+            if (val._bsontype === 'Double') return 'Float64';
+            if (val._bsontype === 'Decimal128') return 'Float64';
+            if (Array.isArray(val)) {
+                if (val.length > 0) {
+                    return `Array(${inferType(val[0])})`;
+                }
+                return 'Array(String)';
+            }
+            return 'String';
+        }
+        return 'String';
+    };
+
+    for (const [key, value] of Object.entries(doc)) {
         if (seen.has(key)) continue;
         seen.add(key);
         const safe = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key) ? key : quoteIdentifier(key);
-        cols.push(`${safe} String`);
+        cols.push(`${safe} ${inferType(value)}`);
     }
     return cols.join(', ');
 }

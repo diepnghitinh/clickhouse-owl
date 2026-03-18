@@ -41,8 +41,33 @@ export function SqlSidebar({
     const [tableSearch, setTableSearch] = useState('');
     const filteredTables = tables.filter(t => t.name.toLowerCase().includes(tableSearch.toLowerCase()));
 
+    const [sidebarWidth, setSidebarWidth] = useState(300);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        
+        const startX = e.clientX;
+        const startWidth = sidebarWidth;
+
+        const handleMouseMove = (mouseMoveEvent: MouseEvent) => {
+            const newWidth = Math.max(200, Math.min(600, startWidth + (mouseMoveEvent.clientX - startX)));
+            setSidebarWidth(newWidth);
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
     return (
-        <div className="w-[300px] border-r border-border bg-card flex flex-col shrink-0">
+        <div 
+            className="border-r border-border bg-card flex flex-col shrink-0 relative"
+            style={{ width: `${sidebarWidth}px` }}
+        >
             <div className="p-4 border-b border-border space-y-4">
                 {/* Database Selector */}
                 <div className="space-y-1.5">
@@ -53,9 +78,10 @@ export function SqlSidebar({
                             className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand/50 appearance-none"
                             value={selectedDatabase}
                             onChange={(e) => onSelectDatabase(e.target.value)}
+                            title={selectedDatabase}
                         >
                             {databases.map(db => (
-                                <option key={db} value={db}>{db}</option>
+                                <option key={db} value={db} title={db}>{db}</option>
                             ))}
                         </select>
                     </div>
@@ -112,6 +138,7 @@ export function SqlSidebar({
                                 key={table.name}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md transition-colors group cursor-pointer"
                                 onClick={() => onTableClick(table.name)}
+                                title={table.name}
                             >
                                 <Table2 className="w-4 h-4 text-muted-foreground group-hover:text-brand shrink-0" />
                                 <span className="truncate flex-1">{table.name}</span>
@@ -173,6 +200,12 @@ export function SqlSidebar({
                     </div>
                 )}
             </div>
+            
+            {/* Draggable Resizer Handle */}
+            <div
+                className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-brand/50 bg-transparent transition-colors z-10"
+                onMouseDown={handleMouseDown}
+            />
         </div>
     );
 }

@@ -68,7 +68,7 @@ export function DeleteTableModal({
                     </Button>
                     <Button
                         type="submit"
-                        variant="destructive" // Assuming Button has variant prop, otherwise just className styles
+                        variant="danger" // Assuming Button has variant prop, otherwise just className styles
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         disabled={loading}
                     >

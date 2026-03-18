@@ -208,7 +208,7 @@ export default function ConnectionDetailPage() {
                         ) : (
                             <div className="divide-y divide-border">
                                 {databases.map((db) => (
-                                    <div key={db} className="p-4 flex items-center justify-between hover:bg-secondary/30 transition-colors group">
+                                    <div key={db} className="p-4 flex items-center justify-between hover:bg-secondary/30 transition-colors group" title={db}>
                                         <div className="flex items-center gap-3">
                                             <Database className="w-5 h-5 text-brand" />
                                             <span className="font-medium text-foreground">{db}</span>
