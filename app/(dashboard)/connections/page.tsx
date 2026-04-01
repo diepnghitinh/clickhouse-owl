@@ -4,9 +4,10 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Server, CheckCircle2, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { AddConnectionModal, ConnectionConfig } from '@/components/AddConnectionModal';
-import { cn } from '@/lib/utils';
+import { cn, generateId } from '@/lib/utils';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { Dropdown } from '@/components/ui/Dropdown';
+import { normalizeConnectionLike } from '@/lib/clickhouse-url';
 
 export default function ConnectionsPage() {
     const router = useRouter();
@@ -22,11 +23,22 @@ export default function ConnectionsPage() {
                 // Backward compatibility: Ensure IDs
                 let modified = false;
                 parsed = parsed.map(c => {
+                    let nextConnection = c;
+
                     if (!c.id) {
                         modified = true;
-                        return { ...c, id: crypto.randomUUID() };
+                        nextConnection = { ...nextConnection, id: generateId() };
                     }
-                    return c;
+
+                    try {
+                        const normalized = normalizeConnectionLike(nextConnection);
+                        if (normalized.url !== nextConnection.url) {
+                            modified = true;
+                        }
+                        return normalized;
+                    } catch {
+                        return nextConnection;
+                    }
                 });
 
                 setConnections(parsed);
@@ -40,14 +52,15 @@ export default function ConnectionsPage() {
     }, []);
 
     const handleSaveConnection = (connection: ConnectionConfig) => {
+        const normalizedConnection = normalizeConnectionLike(connection);
         let newConnections: ConnectionConfig[];
 
         if (editingConnection) {
             // Edit mode: replace by ID
-            newConnections = connections.map(c => c.id === connection.id ? connection : c);
+            newConnections = connections.map(c => c.id === normalizedConnection.id ? normalizedConnection : c);
         } else {
             // Add mode: append
-            newConnections = [...connections, connection];
+            newConnections = [...connections, normalizedConnection];
         }
 
         setConnections(newConnections);

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { X, Loader2, Database, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { generateId } from '@/lib/utils';
 
 interface AddDataSourceModalProps {
     isOpen: boolean;
@@ -40,7 +41,7 @@ export function AddDataSourceModal({ isOpen, onClose, onAdd }: AddDataSourceModa
         e.preventDefault();
         setError(null);
 
-        const newId = crypto.randomUUID();
+        const newId = generateId();
         onAdd({ ...formData, id: newId });
         onClose();
 
