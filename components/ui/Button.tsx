@@ -17,8 +17,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const variants = {
       primary: 'bg-brand hover:brightness-110 text-brand-foreground shadow-lg shadow-brand/20 border border-brand/20',
       secondary: 'bg-secondary hover:bg-secondary/80 text-secondary-foreground',
-      ghost: 'bg-transparent hover:bg-white/5 text-muted-foreground hover:text-brand',
-      outline: 'bg-transparent border border-white/10 hover:border-white/20 text-muted-foreground hover:text-brand',
+      ghost: 'bg-transparent hover:bg-secondary/60 text-muted-foreground hover:text-brand',
+      outline: 'bg-transparent border border-border hover:border-brand/50 text-muted-foreground hover:text-brand',
       danger: 'bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg shadow-destructive/20',
     };
 
@@ -33,7 +33,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={twMerge(
-          'relative inline-flex items-center justify-center gap-2 font-medium transition-all rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] cursor-pointer',
+          'relative inline-flex items-center justify-center gap-2 font-medium transition-all rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] cursor-pointer',
           variants[variant],
           sizes[size],
           className

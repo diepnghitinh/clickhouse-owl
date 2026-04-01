@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { ClickHouseRepository } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
 import { z } from 'zod';
+import { normalizeConnectionLike } from '@/lib/clickhouse-url';
 
 const querySchema = z.object({
   query: z.string().min(1),
@@ -35,6 +36,10 @@ export async function POST(request: Request) {
         ...connectionConfig,
         username: connectionConfig.user
       };
+    }
+
+    if (connectionConfig) {
+      connectionConfig = normalizeConnectionLike(connectionConfig);
     }
 
     const result = await ClickHouseRepository.execute(query, database, connectionConfig);

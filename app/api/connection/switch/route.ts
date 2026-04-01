@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { createClient } from '@clickhouse/client';
+import { normalizeClickHouseUrl } from '@/lib/clickhouse-url';
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { user, password, url, database } = body;
+        const normalizedUrl = normalizeClickHouseUrl(url || 'http://localhost:8123');
 
         // Verify the new connection
         const testClient = createClient({
-            url: url || 'http://localhost:8123',
+            url: normalizedUrl,
             username: user || 'default',
             password: password || '',
             database: database || 'default',
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
         // Update session
         const session = await getSession();
         session.connection = {
-            url,
+            url: normalizedUrl,
             username: user,
             password,
             database,

@@ -14,22 +14,22 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="space-y-1.5 w-full">
         {label && (
-          <label className="text-xs font-semibold text-dark-400 uppercase tracking-wider pl-1">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pl-1">
             {label}
           </label>
         )}
         <div className="relative group">
           {icon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500 group-focus-within:text-brand-400 transition-colors pointer-events-none">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-brand transition-colors pointer-events-none">
               {icon}
             </div>
           )}
           <input
             ref={ref}
             className={twMerge(
-              'w-full border border-dark-700 rounded-lg text-dark-600 placeholder-dark-300 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all disabled:opacity-50',
+              'w-full border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all disabled:opacity-50',
               icon ? 'pl-10 pr-4 py-2.5' : 'px-4 py-2.5',
-              error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
+              error && 'border-destructive focus:border-destructive focus:ring-destructive',
               className
             )}
             {...props}

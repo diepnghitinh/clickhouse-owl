@@ -6,6 +6,7 @@ import { usePathname, useRouter, useParams } from 'next/navigation';
 import { LayoutDashboard, Table2, Terminal, Plus, Database, Server, Activity, ChevronDown, ArrowLeft, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AddConnectionModal, ConnectionConfig } from './AddConnectionModal';
+import { normalizeConnectionLike } from '@/lib/clickhouse-url';
 
 export function Sidebar({ username }: { username: string }) {
   const pathname = usePathname();
@@ -23,7 +24,13 @@ export function Sidebar({ username }: { username: string }) {
     const stored = localStorage.getItem('clickhouse_connections');
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
+        const parsed = JSON.parse(stored).map((connection: ConnectionConfig) => {
+          try {
+            return normalizeConnectionLike(connection);
+          } catch {
+            return connection;
+          }
+        });
         setConnections(parsed);
       } catch (e) {
         console.error("Failed to parse connections", e);
@@ -67,11 +74,12 @@ export function Sidebar({ username }: { username: string }) {
   };
 
   const handleAddConnection = (newConn: ConnectionConfig) => {
-    const newConnections = [...connections, newConn];
+    const normalizedConnection = normalizeConnectionLike(newConn);
+    const newConnections = [...connections, normalizedConnection];
     setConnections(newConnections);
     localStorage.setItem('clickhouse_connections', JSON.stringify(newConnections));
     setIsAddModalOpen(false);
-    handleSwitchConnection(newConn);
+    handleSwitchConnection(normalizedConnection);
   };
 
   const isGlobal = !connectionId;

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Database, Lock, User, Plus, X, Server } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import { generateId } from '@/lib/utils';
+import { normalizeConnectionLike } from '@/lib/clickhouse-url';
 
 interface AddConnectionModalProps {
     isOpen: boolean;
@@ -24,6 +26,7 @@ import { Modal } from './ui/Modal';
 export function AddConnectionModal({ isOpen, onClose, onAdd, initialData }: AddConnectionModalProps) {
     // useEscapeKey handled by Modal
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<ConnectionConfig>({
         name: '',
         url: 'http://localhost:8123',
@@ -34,8 +37,10 @@ export function AddConnectionModal({ isOpen, onClose, onAdd, initialData }: AddC
 
     React.useEffect(() => {
         if (isOpen && initialData) {
+            setError(null);
             setFormData(initialData);
         } else if (isOpen && !initialData) {
+            setError(null);
             setFormData({
                 name: '',
                 url: 'http://localhost:8123',
@@ -51,16 +56,23 @@ export function AddConnectionModal({ isOpen, onClose, onAdd, initialData }: AddC
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        // Simulate validation or test connection could go here
-        setTimeout(() => {
-            const connectionToAdd = {
+        setError(null);
+
+        try {
+            const connectionToAdd = normalizeConnectionLike({
                 ...formData,
-                id: formData.id || crypto.randomUUID()
-            };
+                id: formData.id || generateId()
+            });
+
             onAdd(connectionToAdd);
-            setLoading(false);
             onClose();
-        }, 500);
+        } catch (err: any) {
+            setError(err.message || 'Invalid connection URL');
+        } finally {
+            setLoading(false);
+        }
+
+        // Simulate validation or test connection could go here
     };
 
     return (
@@ -76,6 +88,11 @@ export function AddConnectionModal({ isOpen, onClose, onAdd, initialData }: AddC
             description={initialData ? 'Update connection details.' : 'Configure a new ClickHouse server connection.'}
         >
             <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                        {error}
+                    </div>
+                )}
                 <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1.5 block ml-1">Friendly Name</label>
                     <Input

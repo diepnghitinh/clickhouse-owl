@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { ClickHouseRepository } from '@/lib/infrastructure/clickhouse/repositories/clickhouse.repository';
+import { normalizeConnectionLike } from '@/lib/clickhouse-url';
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -33,6 +34,8 @@ export async function GET(request: Request) {
     if (!connectionConfig) {
       return NextResponse.json({ error: 'Connection config not found' }, { status: 400 });
     }
+
+    connectionConfig = normalizeConnectionLike(connectionConfig);
 
     const result = await ClickHouseRepository.execute('SHOW DATABASES', undefined, connectionConfig);
     const databases = result.rows.map((row: any) => row[0] as string);
@@ -70,6 +73,8 @@ export async function DELETE(request: Request) {
     if (!connectionConfig) {
       return NextResponse.json({ error: 'Connection config not found' }, { status: 400 });
     }
+
+    connectionConfig = normalizeConnectionLike(connectionConfig);
 
     const body = await request.json();
     const { name } = body;
